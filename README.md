@@ -1,2 +1,1 @@
 # DemoCode
-Daily demo code
