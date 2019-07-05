@@ -1,2 +1,2 @@
 # DemoCode
-daily demo code
+Daily demo code
