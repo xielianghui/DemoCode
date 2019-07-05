@@ -10,8 +10,8 @@ public:
     UvWork() = default;
     UvWork(uv_loop_t * uvloop) :m_loop(uvloop) { 
         m_data = new int[3];
-        m_data[0] = 3;
-        m_data[1] = 3;
+        m_data[0] = 1;
+        m_data[1] = 2;
         m_data[2] = 3;
     }
     ~UvWork();
