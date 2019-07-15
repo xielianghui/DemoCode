@@ -42,7 +42,7 @@ int main(int args, char** argv)
     // block send
     char* buf = new char[1024];
     snprintf(buf, 1024, "hello world");
-    if(send(connectfd, buf, strlen(buf), 0)){
+    if(send(connectfd, buf, strlen(buf), 0) < 0){
         printf("Send msg, err msg: %s\n", strerror(errno));
     }
     close(connectfd);
