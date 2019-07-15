@@ -45,6 +45,7 @@ int main(int args, char** argv)
     if(send(connectfd, buf, strlen(buf), 0) < 0){
         printf("Send msg, err msg: %s\n", strerror(errno));
     }
+    getchar();
     close(connectfd);
     return 0;
 }
