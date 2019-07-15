@@ -16,9 +16,6 @@
 #include <iostream>
 #include <vector>
 
-#define MAXEPOLLSIZE 10000
-#define MAXLINE 10240
-
 int Handle(int connfd)
 {
     int ret;
@@ -121,6 +118,8 @@ int main(int args, char** argv)
                             }else{
                                 ++it;
                             }
+                        }else{
+                            ++it;
                         }
                     }
                 } 
