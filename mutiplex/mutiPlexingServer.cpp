@@ -4,6 +4,7 @@
 #include <netinet/in.h>      /* sockaddr_in{} and other Internet defns */
 #include <arpa/inet.h>       /* inet(3) functions */
 #include <sys/select.h>      /* select function */
+#include <sys/poll.h>        /* poll function */
 #include <sys/epoll.h>       /* epoll function */
 #include <fcntl.h>           /* nonblocking */
 #include <sys/resource.h>    /* setrlimit */
@@ -72,7 +73,6 @@ int main(int args, char** argv)
     }
     // mutiplexing IO
     if(mpStyle == 1){// select
-
         fd_set readfds;// read fdset
         struct timeval tv;
         std::vector<int> clientFdVec;
@@ -95,7 +95,7 @@ int main(int args, char** argv)
             printf("This is %d times select,nfds %d\n", counts++, nfds);
             if(nfds < 0){
                 puts("select() failed!");
-                continue;
+                break;
             }
             if(nfds > 0){
                 if(FD_ISSET(listenfd, &readfds)){// some client connect
@@ -110,29 +110,74 @@ int main(int args, char** argv)
                         puts("fcntl() set non block failed!");
                     }
                     clientFdVec.emplace_back(connfd);
-                }else{// maybe some connect fd receive msg
-                    for (auto it = clientFdVec.begin(); it != clientFdVec.end();) {
+                }
+                else{// maybe some connect fd receive msg
+                    for (auto it = clientFdVec.begin(); it != clientFdVec.end();) 
+                    {
                         if(FD_ISSET(*it, &readfds)){
                             if(Handle(*it) < 0){ // connection close
                                 it = clientFdVec.erase(it);
-                            }else{
-                                ++it;
+                                continue;
                             }
-                        }else{
                             ++it;
                         }
                     }
                 } 
             }
          }
-
     }else if(mpStyle == 2){
-
-
-
-
+        struct  pollfd *pfds = (struct pollfd*)malloc(1024*sizeof(struct pollfd));
+        int fdcounts = 0;
+        // add listen fd to pollfd array
+        pfds[0].fd = listenfd;
+        pfds[0].events = POLLIN;
+        ++fdcounts;
+        int counts = 1;
+        while(1)
+        {
+            int ret = poll(pfds, fdcounts, 3000);// timeout: 3000 ms
+            printf("This is %d times select,nfds %d\n", counts++, ret);
+            if(ret < 0){
+                puts("select() failed!");
+                break;
+            }// ret == 0 timeout
+            if(ret > 0){
+                if(pfds[0].revents & pfds[0].events){// listen socket 
+                    int connfd = accept(listenfd, (struct sockaddr *)&cliaddr,&socklen);// accept create a new socket fd to process one connection
+                    if(connfd < 0){
+                        puts("accept() failed!");
+                        continue;
+                    }
+                    printf("Accept connection from %s:%d\n", inet_ntoa(cliaddr.sin_addr), cliaddr.sin_port);
+                    // set nonblock
+                    if (fcntl(connfd, F_SETFL, fcntl(connfd, F_GETFD, 0)|O_NONBLOCK) == -1) {
+                        puts("fcntl() set non block failed!");
+                    }
+                    // add connect fd to pfds
+                    pfds[fdcounts].fd = connfd;
+                    pfds[fdcounts].events = POLLIN;
+                    ++fdcounts;
+                }
+                else{// another connect socket
+                    for(int i = 1; i < fdcounts;)// pfds[0] is listen socket fd
+                    {
+                        if(pfds[i].revents & pfds[i].events){// connect socket
+                            if(Handle(pfds[i].fd) < 0){ // connection close
+                                //del close fd
+                                for(int j = i; j + 1 < fdcounts; ++j)
+                                {
+                                    pfds[j] = pfds[j + 1];
+                                }
+                                --fdcounts;
+                                continue;
+                            }
+                        }
+                        ++i;
+                    }
+                }
+            }
+        }
     }else{// epoll
-
         // create epoll handl and insert listenfd into it
         int epollhdl = epoll_create(1024);// max size
         struct epoll_event ev;
@@ -150,10 +195,9 @@ int main(int args, char** argv)
         {
             int nfds = epoll_wait(epollhdl, events, 1024, 3000);
             printf("This is %d times epoll,nfds %d.\n", counts++, nfds);
-            if(nfds == -1)
-            {
+            if(nfds == -1){
                 puts("epoll_wait() failed!");
-                continue;
+                break;
             }
             for(int i = 0; i < nfds; ++i)
             {
