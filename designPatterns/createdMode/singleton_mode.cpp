@@ -1,6 +1,6 @@
 /* 单例模式即一个进程中一个类只有一个实例，并提供他的全局访问节点，该实例被所有程序模块共享。
  * 根据实例创建时间可以分为 饿汉模式、懒汉模式
- * 单例模式并不复杂，但是需要考虑到线程安全（double checki/volatile）
+ * 单例模式并不复杂，但是需要考虑到线程安全（double check/volatile）
 */
 #include<iostream>
 #include<mutex>
