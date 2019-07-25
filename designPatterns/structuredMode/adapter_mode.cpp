@@ -31,8 +31,8 @@ namespace classadapter
             const int m_voltage;
     };
 	
-	class PowerAdapter:public CNOutlet,JPOutlet
-	{
+    class PowerAdapter:public CNOutlet,JPOutlet
+    {
         public:
             void Output(){
                 this->JPOutlet::Output();
@@ -90,6 +90,10 @@ int main()
     objadapter::JPOutlet* jpOl = new objadapter::JPOutlet();
     objadapter::PowerAdapter* od = new objadapter::PowerAdapter(jpOl);
     od->Output();
+
+    delete cd;
+    delete jpOl;
+    delete od;
     return 0;
 }
 
