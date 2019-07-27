@@ -55,5 +55,8 @@ int main()
     MobilePhone* phone2 = new Vivo();
     phone2->InstallSoftware(new WeChat());
     phone2->RunSoftware();
+
+    delete phone1;
+    delete phone2;
     return 0;
 }
