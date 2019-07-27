@@ -58,5 +58,9 @@ int main()
         it->GetFileName();
     }
     std::cout<<std::endl;
+
+    delete firstDir;
+    delete secondDir;
+    delete file;
     return 0;
 }
