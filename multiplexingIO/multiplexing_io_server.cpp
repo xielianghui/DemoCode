@@ -119,8 +119,8 @@ int main(int args, char** argv)
                                 it = clientFdVec.erase(it);
                                 continue;
                             }
-                            ++it;
                         }
+                        ++it;
                     }
                 } 
             }
