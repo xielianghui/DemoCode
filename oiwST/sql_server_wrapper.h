@@ -27,6 +27,14 @@ struct ResCol // save col info
     ResCol():buf(nullptr){}
 };
 
+enum class CMDTYPE
+{
+    UNKNOW = 0,
+    SELECT = 1,
+    INSERT = 2,
+    UPDATE = 3
+};
+
 class SqlServerHdl
 {
     public:
@@ -34,10 +42,13 @@ class SqlServerHdl
         SqlServerHdl& operator = (const SqlServerHdl&) = delete;
         static SqlServerHdl* Instance();
         int Init(DBConfig& cfg);
-        int QueryCmd(std::string& cmd, std::vector<std::vector<std::string>>& res);
+        int QueryCmd(const std::string& cmd, std::vector<std::vector<std::string>>& res);
+        int InsertCmd(const std::string& cmd);
+        int UpdateCmd(const std::string& cmd);
     private:
         SqlServerHdl();
         ~SqlServerHdl();
+        int Cmd(CMDTYPE type, const std::string& cmd, std::vector<std::vector<std::string>>& res);
     private:
         static SqlServerHdl* m_instance;
         DBPROCESS* m_dbproc;
