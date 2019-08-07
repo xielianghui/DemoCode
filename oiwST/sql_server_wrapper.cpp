@@ -51,12 +51,12 @@ int SqlServerHdl::Init(DBConfig& cfg)
 
 int SqlServerHdl::QueryCmd(std::string& cmd, std::vector<std::vector<std::string>>& res)
 {
-    RETCODE ret = SUCCEED;
-    dbcancel(m_dbproc); // clear dataset last time
-    int ncols = 0; // col counts
-    int rowCode = 0; // after goto can't declare val
     if(m_dbproc)
     {
+        RETCODE ret = SUCCEED;
+        dbcancel(m_dbproc); // clear dataset last time
+        int ncols = 0; // col counts
+        int rowCode = 0; // after goto can't declare val
         // exec cmd
         dbcmd(m_dbproc, cmd.c_str());
         ret = dbsqlexec(m_dbproc);
