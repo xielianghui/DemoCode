@@ -1,8 +1,9 @@
 #pragma once
-#include<iostream>
-#include<string>
-#include<mutex>
-#include<vector>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <mutex>
+#include <cstring>
 
 #include<sybfront.h>
 #include<sybdb.h>
@@ -49,6 +50,8 @@ class SqlServerHdl
         SqlServerHdl();
         ~SqlServerHdl();
         int Cmd(CMDTYPE type, const std::string& cmd, std::vector<std::vector<std::string>>& res);
+        static int MsgHandler(DBPROCESS *dbproc, DBINT msgno, int msgstate, int severity, char *msgtext, char *srvname, char *procname, int line);
+        static int ErrHandler(DBPROCESS * dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr);
     private:
         static SqlServerHdl* m_instance;
         DBPROCESS* m_dbproc;

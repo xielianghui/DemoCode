@@ -1,5 +1,7 @@
 #include"sql_server_wrapper.h"
 
+#define BUFSIZE 1024 // freetds 的bug, 自己指定足够的空间 https://stackoverflow.com/questions/6602726/dbisybase-data-conversion-resulted-in-overflow
+
 SqlServerHdl* SqlServerHdl::m_instance = nullptr;
 
 SqlServerHdl::SqlServerHdl():m_dbproc(nullptr){}
@@ -30,6 +32,10 @@ int SqlServerHdl::Init(DBConfig& cfg)
         std::cout<<"dbinit() failed"<<std::endl;
         return -1;
     }
+    // msg bind
+    dbmsghandle(MsgHandler);
+    dberrhandle(ErrHandler);
+    // login set
     LOGINREC* loginrec = dblogin();
     DBSETLUSER(loginrec, cfg.userName.c_str());// set login user name
     DBSETLPWD(loginrec, cfg.password.c_str()); // set login password
@@ -94,16 +100,16 @@ int SqlServerHdl::Cmd(CMDTYPE type, const std::string& cmd, std::vector<std::vec
                 ncols = dbnumcols(m_dbproc);
                 ResCol* cols = new ResCol[ncols];
                 // get all cols
-                std::vector<std::string> colName;
-                colName.reserve(ncols);
+                //std::vector<std::string> colName;
+                //colName.reserve(ncols);
                 for (int i = 0; i < ncols; ++i)
                 {
                     cols[i].name = dbcolname(m_dbproc, i + 1);
                     cols[i].type = dbcoltype(m_dbproc, i + 1);
-                    cols[i].size = dbcollen(m_dbproc, i + 1);
-                    cols[i].buf = new char[cols[i].size + 1];
-                    colName.emplace_back(cols[i].name);
-                    ret = dbbind(m_dbproc, i + 1, NTBSTRINGBIND, cols[i].size + 1, (BYTE*)cols[i].buf);
+                    cols[i].size = dbcollen(m_dbproc, i + 1); // not true
+                    cols[i].buf = new char[BUFSIZE];
+                    //colName.emplace_back(cols[i].name);
+                    ret = dbbind(m_dbproc, i + 1, NTBSTRINGBIND, BUFSIZE, (BYTE*)cols[i].buf);
                     if (ret == FAIL) {
                         std::cout << "dbbind() failed" << std::endl;
                         goto DEL;
@@ -115,8 +121,8 @@ int SqlServerHdl::Cmd(CMDTYPE type, const std::string& cmd, std::vector<std::vec
                         goto DEL;
                     }
                 }
-                res.emplace_back(colName);// push back col name
-                                          // get all data
+                //res.emplace_back(colName);// push back col name
+                // get all data
                 while ((rowCode = dbnextrow(m_dbproc)) != NO_MORE_ROWS)
                 {
                     std::vector<std::string> oneRow;
@@ -125,7 +131,7 @@ int SqlServerHdl::Cmd(CMDTYPE type, const std::string& cmd, std::vector<std::vec
                     case REG_ROW: // get data
                         for (int i = 0; i < ncols; ++i)
                         {
-                            const char* str = (cols[i].status == -1 ? "null" : cols[i].buf);
+                            const char* str = (cols[i].status == -1 ? "" : cols[i].buf);
                             oneRow.emplace_back(str);
                         }
                         break;
@@ -159,4 +165,38 @@ int SqlServerHdl::Cmd(CMDTYPE type, const std::string& cmd, std::vector<std::vec
     }
     std::cout<< "m_dbproc is empty pointer!"<<std::endl;
     return -1;
+}
+
+int SqlServerHdl::MsgHandler(DBPROCESS *dbproc, DBINT msgno, int msgstate, int severity, char *msgtext, char *srvname, char *procname, int line)
+{
+    int changed_database = 5701, changed_language = 5703;
+    if (msgno == changed_database || msgno == changed_language) {
+        return 0;
+    }
+    if (msgno > 0) {
+        printf("Msg %ld, Level %d, State %d\n", (long)msgno, severity, msgstate);
+        if (strlen(srvname) > 0) {
+            printf("Server '%s', ", srvname);
+        }
+        if (strlen(procname) > 0) {
+            printf("Procedure '%s', ", procname);
+        }
+        if (line > 0) {
+            printf("Line %d", line);
+        }
+        printf("\n");
+    }
+    printf("err msg: %s\n", msgtext);
+    return 0;
+}
+
+int SqlServerHdl::ErrHandler(DBPROCESS * dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr)
+{
+    if(dberr) {
+        printf("Msg %d, Level %d\n%s\n", dberr, severity, dberrstr);
+    }
+    else {
+        printf("DB-LIBRARY error:\n%s\n", dberrstr);
+    }
+    return INT_CANCEL; // #define INT_CANCEL  2
 }
