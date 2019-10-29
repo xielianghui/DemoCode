@@ -273,7 +273,7 @@ Node* DelNode_re(Node* root, int val)
     return root;
 }
 
-void InOrder(Node* root)
+void LevelOrder(Node* root)
 {
     std::queue<Node*> q;
     int size = 1;
@@ -306,7 +306,7 @@ int main()
     root = AddNode_re(root, 11);
     root = AddNode_re(root, 8);
     //root = AddNode_re(root, 27);
-    InOrder(root);
+    LevelOrder(root);
     std::cout << std::endl;
     //root = DelNode_re(root, 30);
     DelNode(&root,30);
