@@ -310,7 +310,7 @@ int main()
     std::cout << std::endl;
     //root = DelNode_re(root, 30);
     DelNode(&root,30);
-    InOrder(root);
+    LevelOrder(root);
     getchar();
     return 0;
 }
