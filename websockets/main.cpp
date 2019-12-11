@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 
-/*
+
 #include "libwebsockets.h"
 
 #define MAX_PAYLOAD_SIZE  10 * 1024
@@ -130,7 +130,7 @@ int main(int args, char** argv)
 
     return 0;
 }
-*/
+
 
 
 
