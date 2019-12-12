@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+import "eddid.quote_basic_info.proto";
+package eddid;
+
+message item_stock_snap_shot
+{
+    uint32 reverse=1;
+};
+
+message item_future_snap_shot
+{
+	uint64 openInterest=1;                  // 持仓量
+    double settlementPrice=2;               // 结算价
+};
+
+message item_option_snap_shot
+{
+    uint32 reverse=1;                                       // 占位符
+};
+
+message item_foreign_exchange_snap_shot
+{
+    uint32 reverse=1;                                       // 占位符
+};
+
+// 行情快照
+message item_quote_snap_shot
+{
+    item_quote_symbol_info symbolInfo=1;
+	double             open=2;                                // 开盘价
+    double             high=3;                                // 最高价
+    double             low=4;                                 // 最低价
+    double             close=5;                               // 收盘价
+    double             last=6;                                // 最新价
+    double             normal=7;                              // 最新价(调整, 备用) ？？？？
+    double             turnover=8;                            // 成交金额
+    uint64           volume=9;                              // 成交量
+    double             average=10;                             // 当日均价
+    fixed64           localDateTime=11;                       // 接收到行情的时间（ns）
+    fixed64           sourceUpdateTime=12;                    // 源更新时间
+    uint32           updateMillisec=13;                      // 最后修改毫秒
+	
+	oneof
+	    data{
+            item_stock_snap_shot           stockSnapshot=14;
+            item_future_snap_shot          futureSnapshot=15;
+            item_option_snap_shot          optionSnapshot=16;
+            item_foreign_exchange_snap_shot forexSnapshot=17;
+        }
+};
+
+// 逐笔成交数据
+message item_trade_tick
+{
+    double   price=1;         // 成交价
+    uint32   vol=2;           // 成交量
+    fixed64   time=3;          // 成交时间
+    int32    tradeType=4;     // 成交类型
+};
+
+// 逐笔
+message item_quote_trade_data
+{
+    item_quote_symbol_info symbolInfo=1;
+	item_trade_tick tradeTick=2;
+	fixed64 sourceUpdateTime=3;                   // 交易所行情更新时间
+};
+
+// 盘口数据
+message item_order_book_entry
+{
+    double   price=1;         // 当前盘口价
+    uint32 volume=2;        // 当前盘口数量
+    int32  orderCount=3;    // 委托笔数
+};
+
+// 盘口列表
+message item_order_book
+{
+    uint32            bidCount=1;                             // 买盘当前数量
+    uint32            askCount=2;                             // 卖盘当前数量
+
+    repeated item_order_book_entry  bids=3;             // 买盘
+    repeated item_order_book_entry  asks=4;             // 卖盘
+};
+// 盘口
+message item_quote_order_book_data
+{
+    item_quote_symbol_info  symbolInfo=1;
+    item_order_book    orderBook=2;                                // 盘口数据
+    fixed64          sourceUpdateTime=3;                         // 交易所行情更新时间
+};
+

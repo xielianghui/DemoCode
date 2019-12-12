@@ -1,0 +1,30 @@
+syntax = "proto3"  ;
+package eddid ;
+
+message item_header
+{ 
+	uint32	length = 1 ;		 
+	uint32	command = 2 ;	 
+	uint64	id = 3 ;	 
+                                     
+	string	token = 4 ; 
+	uint32  crc = 5;
+};
+
+message item_simple_header
+{ 
+	uint32	length = 1 ;		 
+	uint32	command = 2 ;	 
+	uint64	id = 3 ;	 
+};
+
+message proto_simple_response
+{
+	item_header header = 1 ;
+
+	uint32	command = 2 ;				 
+	uint64	id = 3 ;						 
+	uint32	ret = 4 ;			 
+	string	comment = 6 ;	 
+};
+

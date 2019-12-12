@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+import "eddid.proto_header.proto";
+import "eddid.quote_tick.proto";
+package eddid;
+
+message proto_quote_snap_shot
+{
+    item_header header= 1 ;
+	uint32 offset= 3 ;
+	uint32 count= 4 ;
+	uint32 total= 5 ;
+	repeated item_quote_snap_shot quoteSnapShot= 6 ;
+};
+
+message proto_quote_trade_data
+{
+    item_header header= 1 ;
+	uint32 offset= 3 ;
+	uint32 count= 4 ;
+	uint32 total= 5 ;
+    repeated item_quote_trade_data quoteTradeData=6;
+};
+
+message proto_quote_order_book_data
+{
+    item_header header= 1 ;
+	uint32 offset= 3 ;
+	uint32 count= 4 ;
+	uint32 total= 5 ;
+    repeated item_quote_order_book_data quoteOrderBookData=6;
+};
