@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <vector>
 #include <unordered_map>
 
 #include "lev_callback.h"
@@ -39,7 +40,9 @@ private:
     std::shared_ptr<eddid::event_wrap::Service<LevSrvCbHdl>> m_levServicePtr;
     // event for send heartbeat
     event* m_heartbeatEv;
-    // req/res
+    // req/res model
     int64_t m_reqId;
     std::unordered_map<int64_t, CContext*> m_id2ctxMap;
+    // sub/push model
+    std::unordered_map<std::string, std::unordered_map<intptr_t, CContext*>> m_type2ctxsMap; //type|market|code -> (ptr_t -> ctx)
 };

@@ -43,6 +43,21 @@ int main(int args, char** argv)
     if(send(connectfd, argv[3], strlen(argv[3]), 0) < 0){
         printf("Send msg, err msg: %s\n", strerror(errno));
     }
+    // Recv
+    int ret;
+    char buf[2048];
+    while((ret = read(connectfd, buf, 2048)) > 0)// nonblock read
+    {
+        printf("Get message:%s\n", buf);
+        memset(buf, 0, 2048);
+    }
+    if(ret == 0){
+        puts("ret == 0, connection close!");
+        return -1;
+    }
+    if(ret < 0 && errno == EAGAIN){
+        puts("EAGAIN!");
+    }
     close(connectfd);
     return 0;
 }

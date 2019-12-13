@@ -1,16 +1,33 @@
 #pragma once
 
+#include "json/json.h"
+
 class ConvertUtils
 {
 public:
-    static void ProtoReq2JsonReq(int64_t reqid, const std::string& protoReq, std::string& jsonReq)
+    static int ProtoReq2JsonReq(int64_t reqid, const std::string& reqProtoStr, Json::Value& reqJson)
     {
-        //jsonReq = "{\"reqtype\":1,\"reqid\":1,\"session\":\"\",\"data\":{\"connectionid\":1}}";
-        jsonReq = protoReq;
+        reqJson.clear();
+        // for test
+        Json::Reader jsonReader;
+        jsonReader.parse(reqProtoStr, reqJson);
+        reqJson["reqid"] = reqid;
+        // --------
+
+        return 0;
     }
 
-    static void JsonRes2ProtoRes(int64_t& reqid, const std::string& jsonRes, std::string& protoRes)
+    static int JsonRes2ProtoRes(int64_t& reqid, const Json::Value& resJson, std::string& resProto)
     {
-        protoRes = jsonRes;
+        reqid = resJson.isMember("reqid") && resJson["reqid"].isInt() ? resJson["reqid"].asInt() : -1;
+        if(reqid == -1){
+            printf("Get req id failed, msg: %s\n", resJson.toStyledString().c_str());
+            return -1;
+        }
+        // convert
+        Json::StreamWriterBuilder builder;
+        builder.settings_["indentation"] = "";
+        resProto = Json::writeString(builder, resJson);
+        return 0;
     }
 };
