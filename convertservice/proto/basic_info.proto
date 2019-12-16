@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package ed;
+
+import "typedef.proto";
+
+// heartbeat
+message Heartbeat
+{
+	int32 connection_id = 1;
+}
+
+message HeartbeatResp
+{
+	int32  error_code = 1;
+    string error_msg = 2;
+	string server_time = 3;
+}

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package ed;
+
+import "typedef.proto";
+
+message MsgCarrier
+{
+    uint64	req_id = 1;
+    TypeDef.MsgType  msg_type = 2;
+    TypeDef.ReqType  req_type = 3;
+    // add others
+
+    // request data
+    bytes data = 9;
+}

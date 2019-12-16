@@ -36,7 +36,7 @@ private:
     std::shared_ptr<LwsClient> m_lwsClientPtr;
     // tcp service
     eddid::event_wrap::EvLoop m_loopHdl;
-    std::shared_ptr<LevSrvCbHdl> m_CbPtr;
+    std::shared_ptr<LevSrvCbHdl> m_cbPtr;
     std::shared_ptr<eddid::event_wrap::Service<LevSrvCbHdl>> m_levServicePtr;
     // event for send heartbeat
     event* m_heartbeatEv;

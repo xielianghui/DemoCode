@@ -188,6 +188,9 @@ namespace event_wrap {
         void ReadDone(bufferevent *bev)
         {
             evbuffer *input = bufferevent_get_input(bev);
+            if (recv_buffer_ == nullptr)  {
+                return;
+            }
             evbuffer_add_buffer(recv_buffer_, input);
             cb_.OnReadDone(this, std::forward<evbuffer*>(recv_buffer_));
         }

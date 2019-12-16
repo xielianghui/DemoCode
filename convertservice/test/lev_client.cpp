@@ -12,11 +12,15 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "typedef.pb.h"
+#include "msg_carrier.pb.h"
+#include "basic_info.pb.h"
+
 int main(int args, char** argv)
 {
-    if(args < 4)
+    if(args < 3)
     {
-        puts("Please input ip addr port msg");
+        puts("Please input ip addr port");
         return -1;
     }
     // addr set
@@ -40,7 +44,15 @@ int main(int args, char** argv)
         return -1;
     }
     // block send
-    if(send(connectfd, argv[3], strlen(argv[3]), 0) < 0){
+    ed::MsgCarrier mc;
+    mc.set_req_id(2);
+    mc.set_msg_type(ed::TypeDef_MsgType::TypeDef_MsgType_REQ);
+    mc.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_HEARTBEAT);
+    ed::Heartbeat hb;
+    hb.set_connection_id(1);
+    mc.set_data(hb.SerializeAsString());
+    std::string msg = mc.SerializeAsString();
+    if(send(connectfd, msg.data(), msg.size(), 0) < 0){
         printf("Send msg, err msg: %s\n", strerror(errno));
     }
     // Recv
@@ -48,7 +60,13 @@ int main(int args, char** argv)
     char buf[2048];
     while((ret = read(connectfd, buf, 2048)) > 0)// nonblock read
     {
-        printf("Get message:%s\n", buf);
+        std::string resStr(buf, ret);
+        ed::MsgCarrier mc;
+        mc.ParseFromString(resStr);
+        ed::HeartbeatResp hb;
+        hb.ParseFromString(mc.data());
+        std::string ds = hb.DebugString();
+        printf("Get message:%s\n", ds.c_str());
         memset(buf, 0, 2048);
     }
     if(ret == 0){

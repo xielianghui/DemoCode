@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package ed;
+
+message TypeDef
+{
+	enum MsgType
+    {
+        REQ = 0;     // request 
+        RESP = 1;    // response
+        PUSH = 2;    // push
+    }
+
+    enum ReqType
+    {
+        UNKNOWN = 0;
+        HEARTBEAT = 1;
+    };
+}

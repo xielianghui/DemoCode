@@ -2,6 +2,7 @@
 
 #define UN_SUB_FORMATS "{\"reqtype\":201,\"reqid\":1,\"session\":\"\",\"data\":[{\"market\":%s,\"code\":\"%s\",\"type\":%s}]}"
 #define HEARTBEAT_FORMATS "{\"reqtype\":1,\"reqid\":1,\"session\":\"\",\"data\":{\"connectionid\":1}}"
+
 ConvertService::ConvertService():
     m_heartbeatEv(nullptr),
     m_reqId(1)
@@ -33,7 +34,7 @@ int ConvertService::InitLwsClient(std::string& addr, int port)
 
 int ConvertService::InitLevService(std::string& addr, int port)
 {
-    m_CbPtr = std::make_shared<LevSrvCbHdl>(this);
+    m_cbPtr = std::make_shared<LevSrvCbHdl>(this);
     // attach heart timer to loop
     timeval tv;
     evutil_timerclear(&tv);
@@ -51,7 +52,7 @@ int ConvertService::InitLevService(std::string& addr, int port)
         puts("loop start failed\n");
         return -1;
     }
-    m_levServicePtr = std::make_shared<eddid::event_wrap::Service<LevSrvCbHdl>>(&m_loopHdl, *m_CbPtr);
+    m_levServicePtr = std::make_shared<eddid::event_wrap::Service<LevSrvCbHdl>>(&m_loopHdl, *m_cbPtr);
     m_levServicePtr->Initialize(addr, port);
     m_levServicePtr->Start();
     return 0;
