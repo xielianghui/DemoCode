@@ -1,11 +1,12 @@
 #pragma once
+
 #include <memory>
 #include <vector>
 #include <unordered_map>
 
 #include "lev_callback.h"
 #include "lws_callback.h"
-#include "convert_utils.h"
+
 
 class ConvertService
 {
@@ -15,6 +16,7 @@ public:
     ConvertService();
     ~ConvertService();
 public:
+    int Init();
     int InitLwsClient(std::string& addr, int port);
     int InitLevService(std::string& addr, int port);
     // libwebsockets thread
@@ -25,11 +27,13 @@ public:
     void OnLevReadDone(CContext* conn, evbuffer*&& recv_data);
     void OnLevDisConnect(CContext* conn);
     void OnLevError(CContext* conn, int err, const char* err_msg);
-    void SendHeartbeat(std::string& msg);
+    void SendReq(std::string& msg);
 
 private:
     static void OnSendHeartbeatTimer(evutil_socket_t fd, short event, void* args);
-
+    static void OnQueryInsInfoTimer(evutil_socket_t fd, short event, void* args);
+    std::string PackMsg(const std::string& RawMsg);
+    std::string UnPackMsg(const std::string& RawMsg);
 private:
     // libwebsockets
     std::shared_ptr<LwsCltCbHdl> m_lwsCbPtr;
@@ -40,9 +44,13 @@ private:
     std::shared_ptr<eddid::event_wrap::Service<LevSrvCbHdl>> m_levServicePtr;
     // event for send heartbeat
     event* m_heartbeatEv;
+    event* m_queryAllInsEv;
     // req/res model
-    int64_t m_reqId;
-    std::unordered_map<int64_t, CContext*> m_id2ctxMap;
+    int m_reqId;
+    std::unordered_map<int64_t, CContext*> m_id2ctxMap;//(req_id -> ctx)
+    std::unordered_map<int, uint64_t> m_id2originalId;//(internal_req_id -> request_req_id)
+    int m_vecPos;
+    std::vector<int> m_marketVec;
     // sub/push model
     std::unordered_map<std::string, std::unordered_map<intptr_t, CContext*>> m_type2ctxsMap; //type|market|code -> (ptr_t -> ctx)
 };

@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package ed;
+
+import "typedef.proto";
+
+message PriceEntry
+{
+    double price = 1;      // 价格
+    int64 volume = 2;      // 数量
+    int64 broker = 3; // 委托笔数
+}
+
+message QuoteInfo
+{
+    TypeDef.Exchange exchange = 1; // 交易所ID
+    int32 market_id = 2;					// 市场id
+    string product_code = 3;       // 品种代码
+    string ins_id = 4;             // 合约ID
+    double open = 5;               // 开盘价
+    double high = 6;               // 最高价
+    double low = 7;                // 最低价
+    double close = 8;              // 收盘价
+    double last_close = 9;         // 收盘价
+    double last_price = 10;         // 最新价
+    double total_amount = 11;      // 成交总金额
+    int64 total_volume = 12;       // 成交总量
+    double avg_price = 13;         // 当日均价
+    string time = 14;              // 时间
+    int32 millisecond = 15;        // 最后修改毫秒
+    // 期货私有快照
+    int64 open_interest = 16; // 持仓量
+    double settle_price = 17; // 结算价
+    // 盘口数据
+    int64 buy_volume = 18;           // 买盘数量
+    int64 sell_volume = 19;          // 卖盘数量
+    repeated PriceEntry bids = 20;   // 买盘队列
+    repeated PriceEntry offers = 21; // 卖盘队列
+}
+
+message QuoteInfos
+{
+    repeated QuoteInfo data = 1;
+}

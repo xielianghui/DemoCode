@@ -67,7 +67,7 @@ int LwsClient::Connect(std::string addr, int port)
     protocols.name  = "ws";
     protocols.callback = &LwsClientCb;
     protocols.per_session_data_size = sizeof(struct session_data);
-    protocols.rx_buffer_size = 0;
+    protocols.rx_buffer_size = 10 * 1024 * 1024; // 一次回调接收的数据大小10MB,服务器回包的大小不能超过10M，否则手机服务器将会直接断开连接。
     protocols.id = 0;
     protocols.user = NULL;
     protocols.tx_packet_size = 0;

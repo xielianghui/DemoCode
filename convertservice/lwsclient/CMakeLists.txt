@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(lwstest)
 
 list(APPEND add_cppflags -Wall -Wextra -std=c++17 -g)
-list(APPEND add_libraries pthread websockets)
+list(APPEND add_libraries pthread websockets event)
 
 file(GLOB project_sources ./*.h ./*.cpp)
 add_executable(lwstest ${project_sources})

@@ -8,6 +8,7 @@ int main()
     std::string levAddr = "127.0.0.1";
     int levPort = 8032;
     ConvertService srv;
+    srv.Init();
     srv.InitLwsClient(lwsAddr, lwsPort);
     srv.InitLevService(levAddr, levPort);
     char ch_input;

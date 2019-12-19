@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 
+#include <event2/event.h>
+
 #include "lws_client.h"
 
 class LwsCb : public LwsCbInterface
@@ -19,7 +21,7 @@ void LwsCb::OnConnect()
 
 void LwsCb::OnRecv(std::string&& msg)
 {
-    printf("Recv:%s\n", msg.c_str());
+    printf("\033[1;31;40mLength: %d Recv:\033[0m %s\n", msg.size(), msg.c_str());
 }
 
 int main(int args, char** argv)
@@ -32,20 +34,15 @@ int main(int args, char** argv)
     int port = std::atoi(argv[2]);
     std::string reqStr(argv[3]);
 
-    LwsClient lct;
+    struct event_base* base = event_base_new();
+    LwsClient lct(base);
     std::shared_ptr<LwsCb> cbPtr = std::make_shared<LwsCb>();
     lct.Register(cbPtr.get());
     lct.Connect(addr, port);
     lct.SendReq(reqStr);
 
-    char ch_input;
-    while (true) {
-        std::cin >> ch_input;
-        if (ch_input == 'q' || ch_input == 'Q') {
-            break;
-        }
-    }
-
+    event_base_dispatch(base);
+    event_base_free(base);
     return 0;
 }
 
