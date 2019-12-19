@@ -53,8 +53,9 @@ int main(int args, char** argv)
     mc.set_msg_type(ed::TypeDef_MsgType::TypeDef_MsgType_REQ);
     mc.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES);
     ed::SubQuotes sub;
-    sub.set_market_id(2002);
-    sub.set_ins_id("00700");
+    sub.set_type(ed::TypeDef_SubType::TypeDef_SubType_QUOTES);
+    sub.set_exchange(ed::TypeDef_Exchange::TypeDef_Exchange_HKFE);
+    sub.set_ins_id("HHIZ9");
     mc.set_data(sub.SerializeAsString());
     std::string RawMsg = mc.SerializeAsString();
     // add pkg hdl

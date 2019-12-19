@@ -1,5 +1,7 @@
 #pragma once
 #include <vector>
+#include <unordered_map>
+#include <tuple>
 #include <iconv.h>
 
 #include "json/json.h"
@@ -40,12 +42,17 @@ public:
             if(!subReq.ParseFromString(msgCarrier.data())){
                 return -1;
             }
+            // find market code
             reqJson["reqtype"] = 200;
             reqJson["data"].resize(0);
             Json::Value oneCodeJson;
-            oneCodeJson["type"] = 1; // 行情
-            oneCodeJson["market"] = subReq.market_id();
-            oneCodeJson["code"] = subReq.ins_id();
+            oneCodeJson["type"] = (int)subReq.type();
+            std::string key = std::to_string((int)subReq.exchange()) + "|" + subReq.ins_id();
+            auto it = m_subChangeMap.find(key);
+            if(it != m_subChangeMap.end()){
+                oneCodeJson["market"] = std::get<0>(it->second);
+                oneCodeJson["code"] = std::get<1>(it->second);
+            }
             reqJson["data"].append(oneCodeJson);
         }
         else if(msgCarrier.req_type() == ed::TypeDef_ReqType::TypeDef_ReqType_UNSUB_QUOTES){
@@ -56,9 +63,13 @@ public:
             reqJson["reqtype"] = 201;
             reqJson["data"].resize(0);
             Json::Value oneCodeJson;
-            oneCodeJson["type"] = 1; // 行情
-            oneCodeJson["market"] = unSubReq.market_id();
-            oneCodeJson["code"] = unSubReq.ins_id();
+            oneCodeJson["type"] = (int)unSubReq.type();
+            std::string key = std::to_string((int)unSubReq.exchange()) + "|" + unSubReq.ins_id();
+            auto it = m_subChangeMap.find(key);
+            if(it != m_subChangeMap.end()){
+                oneCodeJson["market"] = std::get<0>(it->second);
+                oneCodeJson["code"] = std::get<1>(it->second);
+            }
             reqJson["data"].append(oneCodeJson);
         }
         else{
@@ -81,11 +92,38 @@ public:
                 Json::Value insInfoVec = resJson["data"]["symbol"];
                 for(int i = 0; i < insInfoVec.size(); ++i){
                     auto oneInfo = m_allInsInfoResProto.add_data();
-                    oneInfo->set_ins_id(GBK2UTF8(insInfoVec[i]["code"].asString()));
-                    oneInfo->set_market_id(insInfoVec[i]["market"].asInt());
+
+                    int market = insInfoVec[i]["market"].asInt();
+                    ed::TypeDef::Exchange exchange = MarketId2Exchange(market);
+                    std::string tradecode = GBK2UTF8(insInfoVec[i]["tradecode"].asString());
+                    oneInfo->set_exchange(exchange);
+                    oneInfo->set_ins_id(tradecode);
                     oneInfo->set_ins_name(GBK2UTF8(insInfoVec[i]["name"].asString()));
                     oneInfo->set_ins_en_name(insInfoVec[i]["enname"].asString());
+                    oneInfo->set_settle_currency(CurrencyCode2type(insInfoVec[i]["currencycode"].asString()));
+                    oneInfo->set_trade_currency(CurrencyCode2type(insInfoVec[i]["currencycode"].asString()));
+                    oneInfo->set_product_code(insInfoVec[i]["commoditycode"].asString());
+                    auto it = m_market2timeMap.find(market);
+                    if(it != m_market2timeMap.end()) oneInfo->set_trading_time_slice(it->second);
+                    oneInfo->set_lot_size(insInfoVec[i]["lotsize"].asInt());
+                    oneInfo->set_listing_date(insInfoVec[i]["listingdate"].asString());
+                    int expireDate = insInfoVec[i]["expiredate"].asInt();
+                    oneInfo->set_delivery_year(expireDate / 10000);
+                    oneInfo->set_delivery_mouth((expireDate % 10000) / 100);
+                    oneInfo->set_start_delivery_date(std::to_string(expireDate));
+                    m_subChangeMap[(std::to_string((int)exchange) + "|" + tradecode)] = \
+                        std::make_tuple<int, std::string>(std::move(market), insInfoVec[i]["code"].asString());
                 }
+                return 0;
+            }
+            else if(reqType == 50){
+                auto marketArray = resJson["data"]["market"];
+                for(int i = 0; i < marketArray.size(); ++i)
+                {
+                    auto openCloseTime = marketArray[i]["openclosetime"];
+                    m_market2timeMap[marketArray[i]["market"].asInt()] = openCloseTime.toStyledString();
+                }
+                printf("Get all market open close time, market size:%d\n", m_market2timeMap.size());
                 return 0;
             }
             else if(reqType == 1 || reqType == 0){// internal heartbeat
@@ -144,9 +182,9 @@ public:
         }
         else if(reqType == 150){// unsub res 
             ed::UnSubQuotesResp unSubResp;
-            subResp.set_error_code(std::atoi(resJson["data"]["ret"].asString().c_str()));
+            unSubResp.set_error_code(std::atoi(resJson["data"]["ret"].asString().c_str()));
             msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_UNSUB_QUOTES);
-            msgCarrier.set_data(subResp.SerializeAsString());
+            msgCarrier.set_data(unSubResp.SerializeAsString());
         }
         else{
             return -1;
@@ -235,6 +273,58 @@ public:
         
     }
 
+    static ed::TypeDef::Exchange MarketId2Exchange(int market)
+    {
+        switch(market)
+        {
+        case 2011:case 2015:case 2009:case 2010:
+            return ed::TypeDef_Exchange::TypeDef_Exchange_HKFE;
+        case 2002:case 2031:case 2005:case 2003:case 2004:case 2000:case 2001:
+            return ed::TypeDef_Exchange::TypeDef_Exchange_SEHK;
+        case 40001:case 40002: case 40003:case 40004:case 40005:case 40006:case 40007:
+            return ed::TypeDef_Exchange::TypeDef_Exchange_ASE;
+        case 50000:case 50101:case 50102:case 50103:case 50104:case 50105:
+        case 50106:case 50107:case 50108:case 50109:case 50110:
+            return ed::TypeDef_Exchange::TypeDef_Exchange_CBOT;
+        case 50001:case 51201:case 51202:case 51203:case 51204:case 51205:case 51206:
+            return ed::TypeDef_Exchange::TypeDef_Exchange_COMEX;
+        case 50002:case 52301:case 52302:case 52303:case 52304:
+            return ed::TypeDef_Exchange::TypeDef_Exchange_NYMEX;
+        case 50003:case 50004:case 53401:case 53402:case 53403:case 53404:case 54501:
+        case 54502:case 54503:case 54504:case 54505:case 54506:case 54507:case 54508:case 54509:case 54510:
+            return ed::TypeDef_Exchange::TypeDef_Exchange_CME;
+        case 50005:case 55601:case 55602:case 55603:
+            return ed::TypeDef_Exchange::TypeDef_Exchange_SGX;
+        default:
+            return ed::TypeDef_Exchange::TypeDef_Exchange_EXCHANGE_UNKNOW;
+        }
+    }
+
+    static ed::TypeDef::Currency CurrencyCode2type(const std::string currencyCode)
+    {
+        if(currencyCode == "CNY"){
+            return ed::TypeDef_Currency::TypeDef_Currency_CNY;
+        }
+        else if(currencyCode == "USD"){
+            return ed::TypeDef_Currency::TypeDef_Currency_USD;
+        }
+        else if(currencyCode == "HKD"){
+            return ed::TypeDef_Currency::TypeDef_Currency_HKD;
+        }
+        else if(currencyCode == "EUR"){
+            return ed::TypeDef_Currency::TypeDef_Currency_EUR;
+        }
+        else if(currencyCode == "GBP"){
+            return ed::TypeDef_Currency::TypeDef_Currency_GBP;
+        }
+        else if(currencyCode == "JPY"){
+            return ed::TypeDef_Currency::TypeDef_Currency_JPY;
+        }
+        else {
+            return ed::TypeDef_Currency::TypeDef_Currency_CURRENCY_UNKNOWN;
+        }
+    }
+
     // tool
     static int GBK2UTF8(const std::string &input, std::string &output)
     {
@@ -266,16 +356,23 @@ public:
     }
 
 public:
+    static Json::Value queryMarketJson;
     static ed::QueryAllInsInfoResp m_allInsInfoResProto;
     static std::string m_queryAllInsResStr;
+    // exchange|trade code(合约id) -> market, code(订阅id)
+    static std::unordered_map<std::string, std::tuple<int, std::string>> m_subChangeMap;
+    // quote info template
     static ed::QuoteInfo m_template;
     static std::unordered_map<std::string, ed::QuoteInfo> m_type2quoteMap;//market|code -> quote info
     static std::vector<std::string> m_buyKey;
     static std::vector<std::string> m_sellKey;
+    // open time 
+    static std::unordered_map<int, std::string> m_market2timeMap;
 };
 
 ed::QueryAllInsInfoResp ConvertUtils::m_allInsInfoResProto;
 std::string ConvertUtils::m_queryAllInsResStr{""};
+std::unordered_map<std::string, std::tuple<int, std::string>> ConvertUtils::m_subChangeMap;
 ed::QuoteInfo ConvertUtils::m_template;
 std::unordered_map<std::string, ed::QuoteInfo> ConvertUtils::m_type2quoteMap;
 std::vector<std::string> ConvertUtils::m_buyKey{"buyprice0", "buyprice1", "buyprice2", "buyprice3", "buyprice4", "buyprice5", "buyprice6", "buyprice7", "buyprice8", "buyprice9", 
@@ -284,3 +381,5 @@ std::vector<std::string> ConvertUtils::m_buyKey{"buyprice0", "buyprice1", "buypr
 std::vector<std::string> ConvertUtils::m_sellKey{"sellprice0", "sellprice1", "sellprice2", "sellprice3", "sellprice4", "sellprice5", "sellprice6", "sellprice7", "sellprice8", "sellprice9", 
                                                 "sellvol0", "sellvol1", "sellvol2", "sellvol3", "sellvol4", "sellvol5", "sellvol6", "sellvol7", "sellvol8", "sellvol9", 
                                                 "sellbroker0", "sellbroker1", "sellbroker2", "sellbroker3", "sellbroker4", "sellbroker5", "sellbroker6", "sellbroker7", "sellbroker8", "sellbroker9"};
+std::unordered_map<int, std::string> ConvertUtils::m_market2timeMap;
+Json::Value ConvertUtils::queryMarketJson;

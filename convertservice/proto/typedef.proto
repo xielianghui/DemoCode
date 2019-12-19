@@ -23,6 +23,13 @@ message TypeDef
         PUSH_QUOTES = 11;
     }
 
+    enum SubType
+    {
+        SUB_TYPE_UNKNOW = 0;
+        QUOTES = 1;
+        TICK_BY_TICK = 2;
+    }
+
     enum InstrumentType
     {
         INSTRUMENT_TYPE_UNKNOWN = 0;      // 未知
@@ -81,6 +88,7 @@ message TypeDef
         SGX = 14;                 // 新加坡交易所
         SEHK = 15;                // 香港证券交易所
         HKFE = 16;                // 香港期货交易所
+        ASE = 17;                 // 美国证券交易所
     }
 
     enum InstrumentStatus

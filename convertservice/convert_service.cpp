@@ -46,6 +46,18 @@ int ConvertService::Init()
         ConvertUtils::m_template.add_bids();
         ConvertUtils::m_template.add_offers();
     }
+    // init queryMarketJson
+    ConvertUtils::queryMarketJson["reqtype"] = 50;
+    ConvertUtils::queryMarketJson["reqid"] = 4;
+    ConvertUtils::queryMarketJson["session"] = "";
+    ConvertUtils::queryMarketJson["data"].resize(0);
+    for(auto& it : m_marketVec)
+    {
+        Json::Value oneMarket;
+        oneMarket["market"] = it;
+        ConvertUtils::queryMarketJson["data"].append(oneMarket);
+    }
+
 }
 
 int ConvertService::InitLwsClient(std::string& addr, int port)
@@ -138,8 +150,12 @@ void ConvertService::OnLwsRecvMsg(std::string&& msg)
         else{
             // has query all ins list
             ConvertUtils::m_queryAllInsResStr = ConvertUtils::m_allInsInfoResProto.SerializeAsString();
-            printf("Get all ins info, msg len:%d\n", ConvertUtils::m_queryAllInsResStr.size());
+            printf("Get all instrument info, msg len:%d\n", ConvertUtils::m_queryAllInsResStr.size());
+            puts("System init OK");
         }
+        return;
+    }
+    else if(reqId == 4){ // query market open time
         return;
     }
     else if(reqId == 0){// push res
@@ -335,7 +351,8 @@ void ConvertService::OnSendHeartbeatTimer(evutil_socket_t fd, short event, void*
 void ConvertService::OnQueryInsInfoTimer(evutil_socket_t fd, short event, void* args)
 {
     ConvertService* cs = (ConvertService*) args;
-    // reqid 1 is heartbeat request
+    std::string queryOpenTime = ConvertUtils::queryMarketJson.toStyledString();
+    cs->SendReq(queryOpenTime);
     char queryInsMsg[1024];
     snprintf(queryInsMsg, 1024, QUERY_INS_FORMATS, 2011, 0);
     std::string queryInsStr(queryInsMsg);
