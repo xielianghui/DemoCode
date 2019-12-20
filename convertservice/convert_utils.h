@@ -72,6 +72,24 @@ public:
             }
             reqJson["data"].append(oneCodeJson);
         }
+        else if(msgCarrier.req_type() == ed::TypeDef_ReqType::TypeDef_ReqType_K_LINE){
+            ed::QueryKLine queryKLineReq;
+            if(!queryKLineReq.ParseFromString(msgCarrier.data())){
+                return -1;
+            }
+            reqJson["reqtype"] = 150;
+            reqJson["data"]["weight"] = 0;
+            reqJson["data"]["timetype"] = 0;
+            reqJson["data"]["klinetype"] = (int)queryKLineReq.type();
+            reqJson["data"]["time0"] = queryKLineReq.start_time();
+            reqJson["data"]["time1"] = queryKLineReq.end_time();
+            std::string key = std::to_string((int)queryKLineReq.exchange()) + "|" + queryKLineReq.ins_id();
+            auto it = m_subChangeMap.find(key);
+            if(it != m_subChangeMap.end()){
+                reqJson["data"]["market"] = std::get<0>(it->second);
+                reqJson["data"]["code"] = std::get<1>(it->second);
+            }
+        }
         else{
             return -1;
         }
@@ -176,11 +194,46 @@ public:
             msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES);
             msgCarrier.set_data(subResp.SerializeAsString());
         }
-        else if(reqType == 150){// unsub res 
-            ed::UnSubQuotesResp unSubResp;
-            unSubResp.set_error_code(std::atoi(resJson["data"]["ret"].asString().c_str()));
-            msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_UNSUB_QUOTES);
-            msgCarrier.set_data(unSubResp.SerializeAsString());
+        else if(reqType == 150){// unsub res  / k line res also is 150 (wtf)
+            auto dataJson = resJson["data"];
+            if(dataJson.isMember("ret")){
+                ed::UnSubQuotesResp unSubResp;
+                unSubResp.set_error_code(std::atoi(resJson["data"]["ret"].asString().c_str()));
+                msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_UNSUB_QUOTES);
+                msgCarrier.set_data(unSubResp.SerializeAsString());
+            }
+            else{
+                ed::QueryKLineResp queryKLineRes;
+                if(resJson["status"].asInt() != 0){
+                    queryKLineRes.set_error_code(resJson["status"].asInt());
+                    queryKLineRes.set_error_msg(resJson["msg"].asString());
+                }
+                else{
+                    std::string type = std::to_string(resJson["data"]["market"].asInt()) + "|" + resJson["data"]["code"].asString();
+                    auto it = m_type2insInfoMap.find(type);
+                    if (it != m_type2insInfoMap.end()){
+                        queryKLineRes.set_exchange(it->second.exchange());
+                        queryKLineRes.set_product_code(it->second.product_code());
+                        queryKLineRes.set_ins_id(it->second.ins_id());
+                        auto klArray = resJson["data"]["kline"];
+                        for(int i = 1; i < klArray.size(); ++i)
+                        {
+                            auto oneInfo = queryKLineRes.add_data();
+                            auto dataArray = klArray[i];
+                            if(dataArray.size() < 7) continue;
+                            oneInfo->set_time(dataArray[0].asString());
+                            oneInfo->set_open(dataArray[1].asDouble());
+                            oneInfo->set_high(dataArray[2].asDouble());
+                            oneInfo->set_low(dataArray[3].asDouble());
+                            oneInfo->set_close(dataArray[4].asDouble());
+                            oneInfo->set_total_volume(dataArray[5].asDouble());
+                            oneInfo->set_total_amount(dataArray[6].asDouble());
+                        }
+                    }
+                }
+                msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_K_LINE);
+                msgCarrier.set_data(queryKLineRes.SerializeAsString());
+            }
         }
         else if(reqType == 250){// push quotes
             if (!resJson["data"]["symbol"].empty()){
@@ -221,7 +274,7 @@ public:
 
     static void UpdateQuoteProtoByJson(const Json::Value& quoteJson, ed::QuoteInfo& quoteProto)
     {
-        if(quoteProto.bids_size() < 10 || quoteProto.offers_size() < 10){
+        if(quoteProto.bids_size() < 10 || quoteProto.asks_size() < 10){
             quoteProto.CopyFrom(m_template);
         }
         if(quoteJson.isMember("market")){
@@ -249,7 +302,7 @@ public:
             quoteProto.set_last_close(quoteJson["lastclose"].asDouble());
         }
         if(quoteJson.isMember("lastsettle")){
-            quoteProto.set_last_settle_price(quoteJson["lastsettle"].asDouble());
+            quoteProto.set_pre_settle_price(quoteJson["lastsettle"].asDouble());
         }
         if(quoteJson.isMember("open")){
             quoteProto.set_open(quoteJson["open"].asDouble());
@@ -305,10 +358,10 @@ public:
         // sell
         for(int i = 0; i < 10; ++i){
             if(quoteJson.isMember(m_sellKey[i])){
-                quoteProto.mutable_offers(i)->set_price(quoteJson[m_sellKey[i]].asDouble());
+                quoteProto.mutable_asks(i)->set_price(quoteJson[m_sellKey[i]].asDouble());
             }
             if(quoteJson.isMember(m_sellKey[i + 10])){
-                quoteProto.mutable_offers(i)->set_volume(quoteJson[m_sellKey[i + 10]].asDouble());
+                quoteProto.mutable_asks(i)->set_volume(quoteJson[m_sellKey[i + 10]].asDouble());
             }
         }
         

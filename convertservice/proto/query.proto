@@ -103,3 +103,34 @@ message UnSubQuotesResp
 	int32  error_code = 1;
     string error_msg = 2;
 }
+
+// 查询K线
+message QueryKLine
+{
+	TypeDef.KLineType type = 1;				// K线类型
+	TypeDef.Exchange exchange = 2;			// 交易所ID
+	string ins_id = 3;						// 合约ID
+	string start_time = 4;                  // 开始时间
+	string end_time = 5;                    // 结束时间
+}
+
+message KLineInfo
+{
+	string time = 1;   				// 时间
+	double open = 2;   				// 开盘价
+	double high = 3;   				// 最高价
+	double low = 4;    				// 最低价
+	double close = 5;  				// 收盘价
+	double total_amount = 6;       // 成交总金额
+    int64 total_volume = 7;        // 成交总量
+}
+
+message QueryKLineResp
+{
+	int32  error_code = 1;
+    string error_msg = 2;
+    TypeDef.Exchange exchange = 3; // 交易所ID
+    string product_code = 4;       // 品种代码
+    string ins_id = 5;             // 合约ID
+	repeated KLineInfo data = 6;   // kline数据
+}

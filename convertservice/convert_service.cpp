@@ -49,7 +49,7 @@ int ConvertService::Init()
     for(int i = 0; i < 10; ++i)
     {
         ConvertUtils::m_template.add_bids();
-        ConvertUtils::m_template.add_offers();
+        ConvertUtils::m_template.add_asks();
     }
     // init queryMarketJson
     ConvertUtils::queryMarketJson["reqtype"] = 50;
@@ -233,8 +233,7 @@ void ConvertService::OnLevReadDone(CContext* conn, evbuffer*&& recv_data)
     std::string rawReq;
     uint32_t len = evbuffer_get_length(recv_data);
     rawReq.resize(len);
-    evbuffer_remove(recv_data, rawReq.data(),len );
-    printf("Lev Recv:%s\n", rawReq.c_str());
+    evbuffer_remove(recv_data, rawReq.data(), len);
     std::string reqStr = UnPackMsg(rawReq);
     // convert msg
     ++m_reqId;
@@ -244,6 +243,9 @@ void ConvertService::OnLevReadDone(CContext* conn, evbuffer*&& recv_data)
     if(ret < 0){
         printf("ProtoReq2JsonReq() failed, msg: %s\n", reqStr.c_str());
         return;
+    }
+    else{
+        printf("\033[1;31;40mLev Recv:\033[0m %s\n", reqJson.toStyledString().c_str());
     }
     bool specilaAdd = false;
 

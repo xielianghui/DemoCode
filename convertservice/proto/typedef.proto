@@ -18,6 +18,7 @@ message TypeDef
         ALL_INS_INFO = 2;
         SUB_QUOTES = 3;
         UNSUB_QUOTES = 4;
+        K_LINE = 5;
         // add here
 
         PUSH_QUOTES = 11;
@@ -107,7 +108,27 @@ message TypeDef
     enum RateType
     {
         RATE_TYPE_UNKNOWN   = 0;           // 未知
-        RATE_BY_COST = 1;                    // 按金额收取
-        RATE_BY_VOL = 2;                     // 按手数收取
+        RATE_BY_COST = 1;                  // 按金额收取
+        RATE_BY_VOL = 2;                   // 按手数收取
     }
+
+    enum KLineType
+    {
+        KLT_UNKNOWN = 0;    // 未知
+        KLT_MINUTE = 1;     // 分钟K线
+        KLT_5MINUTE = 2;    // 5分钟K线
+        KLT_60MINUTE = 3;   // 60分钟K线
+        KLT_3MINUTE = 4;    // 3分钟
+        KLT_15MINUTE = 5;   // 15分钟
+        KLT_30MINUTE = 6;   // 30分钟
+        KLT_120MINUTE = 7;  // 120分钟
+                          
+        KLT_DAY = 10;       // 日K线
+        KLT_WEEK = 11;      // 周K线
+                          
+        KLT_MOUTH = 20;     // 月K线
+        KLT_SEASON = 21;    // 季K线
+        KLT_YEAR = 30;      // 年K线
+    }
+
 }
