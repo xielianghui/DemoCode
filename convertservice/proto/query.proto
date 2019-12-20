@@ -46,7 +46,7 @@ message QuoteBasicInfo
 	bool is_trade = 16;                     // 是否可交易
 	TypeDef.InstrumentStatus ins_status = 17; // 合约状态
 	string create_date = 18;                  // 创建日期
-	string listing_date = 19;					  // 上市日期
+	string listing_date = 19;				  // 上市日期 YYYYMMDD
 	string update_date = 20;                  // 更新日期
 	// 期货合约私有信息
 	TypeDef.RateType deposit_collect_method = 21; // 保证金收取方式
@@ -65,8 +65,8 @@ message QuoteBasicInfo
 	string first_notice_date = 34;            // 首次通知日
 	string expired_date = 35;                 // 到期日
 	int32 expired_mouth = 36;                 // 到期月份
-	string start_delivery_date = 37;          // 开始交割日期
-	string end_delivery_date = 38;            // 结束交割日期
+	string start_delivery_date = 37;          // 开始交割日期 YYYYMMDD
+	string end_delivery_date = 38;            // 结束交割日期 YYYYMMDD
 };
 
 message QueryAllInsInfoResp

@@ -18,7 +18,7 @@ public:
 public:
     int Init();
     int InitLwsClient(std::string& addr, int port);
-    int InitLevService(std::string& addr, int port);
+    int InitLevService(std::string& addr, const std::vector<int>& portVec);
     // libwebsockets thread
     void OnLwsRecvMsg(std::string&& msg);
     void OnLwsConnect();
@@ -41,7 +41,7 @@ private:
     // tcp service
     eddid::event_wrap::EvLoop m_loopHdl;
     std::shared_ptr<LevSrvCbHdl> m_cbPtr;
-    std::shared_ptr<eddid::event_wrap::Service<LevSrvCbHdl>> m_levServicePtr;
+    std::vector<std::shared_ptr<eddid::event_wrap::Service<LevSrvCbHdl>>> m_levServicePtrVec;
     // event for send heartbeat
     event* m_heartbeatEv;
     event* m_queryAllInsEv;

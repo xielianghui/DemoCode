@@ -94,6 +94,7 @@ public:
                     auto oneInfo = m_allInsInfoResProto.add_data();
 
                     int market = insInfoVec[i]["market"].asInt();
+                    std::string code = insInfoVec[i]["code"].asString();
                     ed::TypeDef::Exchange exchange = MarketId2Exchange(market);
                     std::string tradecode = GBK2UTF8(insInfoVec[i]["tradecode"].asString());
                     oneInfo->set_exchange(exchange);
@@ -111,8 +112,16 @@ public:
                     oneInfo->set_delivery_year(expireDate / 10000);
                     oneInfo->set_delivery_mouth((expireDate % 10000) / 100);
                     oneInfo->set_start_delivery_date(std::to_string(expireDate));
+                    // save info
+                    ed::InsInfo insInfo;
+                    insInfo.set_exchange(exchange);
+                    insInfo.set_product_code(insInfoVec[i]["commoditycode"].asString());
+                    insInfo.set_ins_id(tradecode);
+                    m_type2insInfoMap[std::to_string(market) + "|" + code] = insInfo;
+
                     m_subChangeMap[(std::to_string((int)exchange) + "|" + tradecode)] = \
-                        std::make_tuple<int, std::string>(std::move(market), insInfoVec[i]["code"].asString());
+                        std::make_tuple<int, std::string>(std::move(market), std::move(code));
+                    
                 }
                 return 0;
             }
@@ -157,7 +166,7 @@ public:
                 msgCarrier.set_msg_type(ed::TypeDef_MsgType::TypeDef_MsgType_PUSH);
                 msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_PUSH_QUOTES);
                 msgCarrier.set_data(quoteInfo.SerializeAsString());
-                std::string type = std::to_string(quoteInfo.market_id()) + quoteInfo.ins_id();
+                std::string type = std::to_string(oneQuoteInfo["market"].asInt()) + "|" + oneQuoteInfo["code"].asString();
                 m_type2quoteMap[type] = quoteInfo;
             }
         }
@@ -167,10 +176,16 @@ public:
             msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES);
             msgCarrier.set_data(subResp.SerializeAsString());
         }
-        else if(reqType == 250){// push 
+        else if(reqType == 150){// unsub res 
+            ed::UnSubQuotesResp unSubResp;
+            unSubResp.set_error_code(std::atoi(resJson["data"]["ret"].asString().c_str()));
+            msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_UNSUB_QUOTES);
+            msgCarrier.set_data(unSubResp.SerializeAsString());
+        }
+        else if(reqType == 250){// push quotes
             if (!resJson["data"]["symbol"].empty()){
                 auto oneQuoteInfo = resJson["data"]["symbol"][0];
-                std::string type = std::to_string(oneQuoteInfo["market"].asInt()) + oneQuoteInfo["code"].asString();
+                std::string type = std::to_string(oneQuoteInfo["market"].asInt()) + "|" +  oneQuoteInfo["code"].asString();
                 auto it = m_type2quoteMap.find(type);
                 if(it != m_type2quoteMap.end()){
                     UpdateQuoteProtoByJson(oneQuoteInfo, it->second);
@@ -180,11 +195,22 @@ public:
                 }
             }
         }
-        else if(reqType == 150){// unsub res 
-            ed::UnSubQuotesResp unSubResp;
-            unSubResp.set_error_code(std::atoi(resJson["data"]["ret"].asString().c_str()));
-            msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_UNSUB_QUOTES);
-            msgCarrier.set_data(unSubResp.SerializeAsString());
+        else if(reqType == 251){// push tick
+            if (!resJson["data"]["tick"].empty()){
+                auto oneTickInfo = resJson["data"]["tick"][0];
+                std::string type = std::to_string(oneTickInfo["market"].asInt()) + "|" + oneTickInfo["code"].asString();
+                auto it = m_type2insInfoMap.find(type);
+                if(it != m_type2insInfoMap.end()){
+                    ed::TickInfo tickInfo;
+                    tickInfo.mutable_ins_info()->CopyFrom(it->second);
+                    tickInfo.set_price(oneTickInfo["price"].asDouble());
+                    tickInfo.set_volume(oneTickInfo["volume"].asInt());
+                    tickInfo.set_time(oneTickInfo["time"].asString());//TODO
+                    msgCarrier.set_msg_type(ed::TypeDef_MsgType::TypeDef_MsgType_PUSH);
+                    msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_PUSH_TICKS);
+                    msgCarrier.set_data(tickInfo.SerializeAsString());
+                }
+            }
         }
         else{
             return -1;
@@ -199,11 +225,32 @@ public:
             quoteProto.CopyFrom(m_template);
         }
         if(quoteJson.isMember("market")){
-            quoteProto.set_market_id(quoteJson["market"].asInt());
+            quoteProto.mutable_ins_info()->set_exchange(MarketId2Exchange(quoteJson["market"].asInt()));
         } 
-        if(quoteJson.isMember("code")){
-            quoteProto.set_ins_id(quoteJson["code"].asString());
-        }   
+        if(quoteJson.isMember("commoditycode")){
+            quoteProto.mutable_ins_info()->set_product_code(quoteJson["commoditycode"].asString());
+        }
+        if(quoteJson.isMember("tradecode")){
+            quoteProto.mutable_ins_info()->set_ins_id(quoteJson["tradecode"].asString());
+        }
+        if(quoteJson.isMember("name")){
+            quoteProto.set_ins_name(quoteJson["name"].asString());
+        }
+        if(quoteJson.isMember("enname")){
+            quoteProto.set_ins_en_name(quoteJson["enname"].asString());
+        }
+        if(quoteJson.isMember("raiselimit")){
+            quoteProto.set_raise_limit(quoteJson["raiselimit"].asDouble());
+        }
+        if(quoteJson.isMember("downlimit")){
+            quoteProto.set_down_limit(quoteJson["downlimit"].asDouble());
+        }
+        if(quoteJson.isMember("lastclose")){
+            quoteProto.set_last_close(quoteJson["lastclose"].asDouble());
+        }
+        if(quoteJson.isMember("lastsettle")){
+            quoteProto.set_last_settle_price(quoteJson["lastsettle"].asDouble());
+        }
         if(quoteJson.isMember("open")){
             quoteProto.set_open(quoteJson["open"].asDouble());
         }   
@@ -213,8 +260,8 @@ public:
         if(quoteJson.isMember("low")){
             quoteProto.set_low(quoteJson["low"].asDouble());
         }   
-        if(quoteJson.isMember("lastclose")){
-            quoteProto.set_last_close(quoteJson["lastclose"].asDouble());
+        if(quoteJson.isMember("now")){
+            quoteProto.set_close(quoteJson["now"].asDouble());
         }   
         if(quoteJson.isMember("now")){
             quoteProto.set_last_price(quoteJson["now"].asDouble());
@@ -228,14 +275,14 @@ public:
         if(quoteJson.isMember("avg")){
             quoteProto.set_avg_price(quoteJson["avg"].asDouble());
         }   
-        if(quoteJson.isMember("time")){
+        if(quoteJson.isMember("time")){ // TODO 
             quoteProto.set_time(quoteJson["time"].asString());
-        }   
+        }
         if(quoteJson.isMember("millisecond")){
             quoteProto.set_millisecond(quoteJson["millisecond"].asInt());
         }   
         if(quoteJson.isMember("hold")){
-            quoteProto.set_open_interest(quoteJson["hold"].asDouble());
+            quoteProto.set_hold(quoteJson["hold"].asDouble());
         }   
         if(quoteJson.isMember("settle")){
             quoteProto.set_settle_price(quoteJson["settle"].asDouble());
@@ -254,9 +301,6 @@ public:
             if(quoteJson.isMember(m_buyKey[i + 10])){
                 quoteProto.mutable_bids(i)->set_volume(quoteJson[m_buyKey[i + 10]].asDouble());
             }
-            if(quoteJson.isMember(m_buyKey[i + 20])){
-                quoteProto.mutable_bids(i)->set_broker(quoteJson[m_buyKey[i + 20]].asDouble());
-            }
         }
         // sell
         for(int i = 0; i < 10; ++i){
@@ -265,9 +309,6 @@ public:
             }
             if(quoteJson.isMember(m_sellKey[i + 10])){
                 quoteProto.mutable_offers(i)->set_volume(quoteJson[m_sellKey[i + 10]].asDouble());
-            }
-            if(quoteJson.isMember(m_sellKey[i + 20])){
-                quoteProto.mutable_offers(i)->set_broker(quoteJson[m_sellKey[i + 20]].asDouble());
             }
         }
         
@@ -368,6 +409,7 @@ public:
     static std::vector<std::string> m_sellKey;
     // open time 
     static std::unordered_map<int, std::string> m_market2timeMap;
+    static std::unordered_map<std::string, ed::InsInfo> m_type2insInfoMap;//market|code -> ins info
 };
 
 ed::QueryAllInsInfoResp ConvertUtils::m_allInsInfoResProto;
@@ -376,10 +418,9 @@ std::unordered_map<std::string, std::tuple<int, std::string>> ConvertUtils::m_su
 ed::QuoteInfo ConvertUtils::m_template;
 std::unordered_map<std::string, ed::QuoteInfo> ConvertUtils::m_type2quoteMap;
 std::vector<std::string> ConvertUtils::m_buyKey{"buyprice0", "buyprice1", "buyprice2", "buyprice3", "buyprice4", "buyprice5", "buyprice6", "buyprice7", "buyprice8", "buyprice9", 
-                                                "buyvol0", "buyvol1", "buyvol2", "buyvol3", "buyvol4", "buyvol5", "buyvol6", "buyvol7", "buyvol8", "buyvol9", 
-                                                "buybroker0", "buybroker1", "buybroker2", "buybroker3", "buybroker4", "buybroker5", "buybroker6", "buybroker7", "buybroker8", "buybroker9"};
+                                                "buyvol0", "buyvol1", "buyvol2", "buyvol3", "buyvol4", "buyvol5", "buyvol6", "buyvol7", "buyvol8", "buyvol9"};
 std::vector<std::string> ConvertUtils::m_sellKey{"sellprice0", "sellprice1", "sellprice2", "sellprice3", "sellprice4", "sellprice5", "sellprice6", "sellprice7", "sellprice8", "sellprice9", 
-                                                "sellvol0", "sellvol1", "sellvol2", "sellvol3", "sellvol4", "sellvol5", "sellvol6", "sellvol7", "sellvol8", "sellvol9", 
-                                                "sellbroker0", "sellbroker1", "sellbroker2", "sellbroker3", "sellbroker4", "sellbroker5", "sellbroker6", "sellbroker7", "sellbroker8", "sellbroker9"};
+                                                "sellvol0", "sellvol1", "sellvol2", "sellvol3", "sellvol4", "sellvol5", "sellvol6", "sellvol7", "sellvol8", "sellvol9"};
 std::unordered_map<int, std::string> ConvertUtils::m_market2timeMap;
 Json::Value ConvertUtils::queryMarketJson;
+std::unordered_map<std::string, ed::InsInfo> ConvertUtils::m_type2insInfoMap;

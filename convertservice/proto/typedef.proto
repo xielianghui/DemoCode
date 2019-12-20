@@ -21,13 +21,14 @@ message TypeDef
         // add here
 
         PUSH_QUOTES = 11;
+        PUSH_TICKS = 12;
     }
 
     enum SubType
     {
         SUB_TYPE_UNKNOW = 0;
         QUOTES = 1;
-        TICK_BY_TICK = 2;
+        TICK = 2;
     }
 
     enum InstrumentType
@@ -105,8 +106,8 @@ message TypeDef
 
     enum RateType
     {
-        RATE_TYPE_UNKNOWN   = 0 ;           // 未知
-        RATE_BY_COST =1;                    // 按金额收取
-        RATE_BY_VOL =2;                     // 按手数收取
+        RATE_TYPE_UNKNOWN   = 0;           // 未知
+        RATE_BY_COST = 1;                    // 按金额收取
+        RATE_BY_VOL = 2;                     // 按手数收取
     }
 }

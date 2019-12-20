@@ -5,7 +5,7 @@
 #define HEARTBEAT_FORMATS "{\"reqtype\":1,\"reqid\":1,\"session\":\"\",\"data\":{\"connectionid\":1}}"
 #define UN_SUB_FORMATS "{\"reqtype\":201,\"reqid\":2,\"session\":\"\",\"data\":[{\"market\":%s,\"code\":\"%s\",\"type\":%s}]}"
 #define QUERY_INS_FORMATS "{\"reqtype\":52,\"reqid\":3,\"session\":\"\",\"data\":{\"marketid\":%d,\"idtype\":1,\"beginpos\":%d,\"count\":1000,\"getquote\":0}}"
-#define Query_QUOTE "{\"reqtype\":153,\"reqid\":%d,\"session\":\"\",\"data\":{\"getsyminfo\":0,\"symbol\":[{\"market\":%d,\"code\":\"%s\"}]}}"
+#define Query_QUOTE "{\"reqtype\":153,\"reqid\":%d,\"session\":\"\",\"data\":{\"getsyminfo\":1,\"symbol\":[{\"market\":%d,\"code\":\"%s\"}]}}"
 
 //香港期货=》商品期货：2011；股指期货：2015；货币期货：2009；香港期货：2010
 //港股=》主板：2002；创业板：2031；指数：2005；认设证：2003；牛熊证：2004；ETF：2000；other：2001
@@ -30,7 +30,12 @@ ConvertService::~ConvertService()
     if(m_queryAllInsEv){
         event_free(m_queryAllInsEv);
     }
-    m_levServicePtr->Release();
+    for(auto& it : m_levServicePtrVec)
+    {
+        if(it){
+            it->Release();
+        }
+    }
     m_loopHdl.Release();
 }
 
@@ -71,7 +76,7 @@ int ConvertService::InitLwsClient(std::string& addr, int port)
     return 0;
 }
 
-int ConvertService::InitLevService(std::string& addr, int port)
+int ConvertService::InitLevService(std::string& addr, const std::vector<int>& portVec)
 {
     // attach heart timer to loop
     timeval tv;
@@ -102,9 +107,13 @@ int ConvertService::InitLevService(std::string& addr, int port)
     }
     // service start listen 
     m_cbPtr = std::make_shared<LevSrvCbHdl>(this);
-    m_levServicePtr = std::make_shared<eddid::event_wrap::Service<LevSrvCbHdl>>(&m_loopHdl, *m_cbPtr);
-    m_levServicePtr->Initialize(addr, port);
-    m_levServicePtr->Start();
+    for(auto& it : portVec)
+    {
+        auto levServicePtr = std::make_shared<eddid::event_wrap::Service<LevSrvCbHdl>>(&m_loopHdl, *m_cbPtr);
+        levServicePtr->Initialize(addr, it);
+        levServicePtr->Start();
+        m_levServicePtrVec.emplace_back(levServicePtr);
+    }
     return 0;
 }
 
@@ -255,17 +264,20 @@ void ConvertService::OnLevReadDone(CContext* conn, evbuffer*&& recv_data)
             mc.set_data(ConvertUtils::m_queryAllInsResStr);
         }
         std::string resProtoStr = mc.SerializeAsString();
-        conn->Send(resProtoStr.data(), resProtoStr.size());
+        std::string sendMsg = PackMsg(resProtoStr);
+        conn->Send(sendMsg.data(), sendMsg.size());
         return;
     }
     else if(reqType == 200){// sub
-        specilaAdd = true;
-        // before sub, query 153
-        char queryQuoteMsg[1024];
-        snprintf(queryQuoteMsg, 1024, Query_QUOTE, m_reqId + 1, reqJson["data"][0]["market"].asInt(), reqJson["data"][0]["code"].asString().c_str());
-        std::string queryQuoteStr(queryQuoteMsg);
-        m_lwsClientPtr->SendReq(queryQuoteStr);
-        m_id2ctxMap[m_reqId + 1] = conn;
+        if(reqJson["data"][0]["type"].asInt() == 1){
+            specilaAdd = true;
+            // before sub, query 153
+            char queryQuoteMsg[1024];
+            snprintf(queryQuoteMsg, 1024, Query_QUOTE, m_reqId + 1, reqJson["data"][0]["market"].asInt(), reqJson["data"][0]["code"].asString().c_str());
+            std::string queryQuoteStr(queryQuoteMsg);
+            m_lwsClientPtr->SendReq(queryQuoteStr);
+            m_id2ctxMap[m_reqId + 1] = conn;
+        }
     } 
     // send req to websockets
     m_lwsClientPtr->SendReq(reqJson.toStyledString());

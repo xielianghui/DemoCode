@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include "convert_service.h"
 
 int main()
@@ -6,11 +7,11 @@ int main()
     std::string lwsAddr = "119.23.15.70";
     int lwsPort = 8500;
     std::string levAddr = "127.0.0.1";
-    int levPort = 8032;
+    std::vector<int> levPortVec{8031, 8032};
     ConvertService srv;
     srv.Init();
     srv.InitLwsClient(lwsAddr, lwsPort);
-    srv.InitLevService(levAddr, levPort);
+    srv.InitLevService(levAddr, levPortVec);
     char ch_input;
     while (true) {
         std::cin >> ch_input;
