@@ -18,10 +18,10 @@ void CountingSort(std::vector<int>& nums)
     }
     std::vector<int> tmpVec;
     tmpVec.resize(nums.size());
-    for(auto& it : nums)
+    for(int i = nums.size() - 1; i >=  0; --i)// 注意从后往前才能保证排序是稳定的
     {
-        tmpVec[countingArray[it]] = it;
-        countingArray[it] -= 1;
+        tmpVec[countingArray[nums[i]]] = nums[i];
+        countingArray[nums[i]] -= 1;
     }
     nums.swap(tmpVec);
 }
