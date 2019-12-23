@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <string>
 
 #include <event2/event.h>
@@ -26,13 +27,29 @@ void LwsCb::OnRecv(std::string&& msg)
 
 int main(int args, char** argv)
 {
-    if(args < 3){
+    if(args < 4){
         puts("[Usage:] lwstest ip_address port json_req");
         return -1;
     }
     std::string addr(argv[1]);
     int port = std::atoi(argv[2]);
-    std::string reqStr(argv[3]);
+    std::string reqStrFile(argv[3]);
+
+    std::ifstream file(reqStrFile);
+    if(!file){
+        printf("Open file failed, error msg:%s\n", strerror(errno));
+        return -1;
+    }
+    std::string reqStr = "{\"reqtype\":200,\"reqid\":0,\"session\":\"\",\"data\":[";//{\"market\":2015,\"code\":\"THHIZ\",\"type\":1}]}"
+    int i = 0;
+    int lineNums = 1;
+    std::string oneline;
+    while(std::getline(file, oneline) && i++ < lineNums)
+    {
+        reqStr.append(oneline);
+    }
+    reqStr.pop_back();
+    reqStr += "]}";
 
     struct event_base* base = event_base_new();
     LwsClient lct(base);

@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <vector>
 #include <unordered_map>
 #include <tuple>
@@ -19,26 +20,26 @@ public:
     static int64_t ProtoReq2JsonReq(int64_t reqid, const std::string& reqProtoStr, Json::Value& reqJson)
     {
         reqJson.clear();
-        ed::MsgCarrier msgCarrier;
-        if(!msgCarrier.ParseFromString(reqProtoStr) || msgCarrier.msg_type() != ed::TypeDef_MsgType::TypeDef_MsgType_REQ){
+        eddid::MsgCarrier msgCarrier;
+        if(!msgCarrier.ParseFromString(reqProtoStr) || msgCarrier.msg_type() != eddid::TypeDef_MsgType::TypeDef_MsgType_REQ){
             return -1;
         }
         // write same fields
         reqJson["reqid"] = reqid;
         reqJson["session"] = "";
-        if(msgCarrier.req_type() == ed::TypeDef_ReqType::TypeDef_ReqType_HEARTBEAT){
-            ed::Heartbeat heartbeatReq;
+        if(msgCarrier.req_type() == eddid::TypeDef_ReqType::TypeDef_ReqType_HEARTBEAT){
+            eddid::Heartbeat heartbeatReq;
             if(!heartbeatReq.ParseFromString(msgCarrier.data())){
                 return -1;
             }
             reqJson["reqtype"] = 1;
             reqJson["data"]["connectionid"] = heartbeatReq.connection_id();
         }
-        else if(msgCarrier.req_type() == ed::TypeDef_ReqType::TypeDef_ReqType_ALL_INS_INFO){
+        else if(msgCarrier.req_type() == eddid::TypeDef_ReqType::TypeDef_ReqType_ALL_INS_INFO){
             reqJson["reqtype"] = 52;
         }
-        else if(msgCarrier.req_type() == ed::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES){
-            ed::SubQuotes subReq;
+        else if(msgCarrier.req_type() == eddid::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES){
+            eddid::SubQuotes subReq;
             if(!subReq.ParseFromString(msgCarrier.data())){
                 return -1;
             }
@@ -55,8 +56,8 @@ public:
             }
             reqJson["data"].append(oneCodeJson);
         }
-        else if(msgCarrier.req_type() == ed::TypeDef_ReqType::TypeDef_ReqType_UNSUB_QUOTES){
-            ed::UnSubQuotes unSubReq;
+        else if(msgCarrier.req_type() == eddid::TypeDef_ReqType::TypeDef_ReqType_UNSUB_QUOTES){
+            eddid::UnSubQuotes unSubReq;
             if(!unSubReq.ParseFromString(msgCarrier.data())){
                 return -1;
             }
@@ -72,8 +73,8 @@ public:
             }
             reqJson["data"].append(oneCodeJson);
         }
-        else if(msgCarrier.req_type() == ed::TypeDef_ReqType::TypeDef_ReqType_K_LINE){
-            ed::QueryKLine queryKLineReq;
+        else if(msgCarrier.req_type() == eddid::TypeDef_ReqType::TypeDef_ReqType_K_LINE){
+            eddid::QueryKLine queryKLineReq;
             if(!queryKLineReq.ParseFromString(msgCarrier.data())){
                 return -1;
             }
@@ -100,7 +101,7 @@ public:
     {
         reqId = resJson.isMember("reqid") && resJson["reqid"].isInt() ? resJson["reqid"].asInt() : -1;
         if(reqId == -1){
-            printf("Get req id failed, msg: %s\n", resJson.toStyledString().c_str());
+            std::cout<<"JsonRes2ProtoRes(): Get req id failed, msg:"<<resJson.toStyledString()<<std::endl;
             return -1;
         }
         int reqType = resJson["reqtype"].asInt();
@@ -113,7 +114,7 @@ public:
 
                     int market = insInfoVec[i]["market"].asInt();
                     std::string code = insInfoVec[i]["code"].asString();
-                    ed::TypeDef::Exchange exchange = MarketId2Exchange(market);
+                    eddid::TypeDef::Exchange exchange = MarketId2Exchange(market);
                     std::string tradecode = GBK2UTF8(insInfoVec[i]["tradecode"].asString());
                     oneInfo->set_exchange(exchange);
                     oneInfo->set_ins_id(tradecode);
@@ -131,7 +132,7 @@ public:
                     oneInfo->set_delivery_mouth((expireDate % 10000) / 100);
                     oneInfo->set_start_delivery_date(std::to_string(expireDate));
                     // save info
-                    ed::InsInfo insInfo;
+                    eddid::InsInfo insInfo;
                     insInfo.set_exchange(exchange);
                     insInfo.set_product_code(insInfoVec[i]["commoditycode"].asString());
                     insInfo.set_ins_id(tradecode);
@@ -150,13 +151,13 @@ public:
                     auto openCloseTime = marketArray[i]["openclosetime"];
                     m_market2timeMap[marketArray[i]["market"].asInt()] = openCloseTime.toStyledString();
                 }
-                printf("Get all market open close time, market size:%d\n", m_market2timeMap.size());
+                std::cout<<"Get all markets open-close time, market size:"<<m_market2timeMap.size()<<std::endl;
                 return 0;
             }
             else if(reqType == 1 || reqType == 0){// internal heartbeat
                 return 0;
             }
-            else if(reqType == 201){ // unsub res
+            else if(reqType == 200 || reqType == 201){ // internal sub/unsub res
                 return 0;
             }
             else{
@@ -165,45 +166,45 @@ public:
         }
 
         // external req convert
-        ed::MsgCarrier msgCarrier;
+        eddid::MsgCarrier msgCarrier;
         msgCarrier.set_req_id(reqId);
-        msgCarrier.set_msg_type(reqId == 0 ? ed::TypeDef_MsgType::TypeDef_MsgType_PUSH : ed::TypeDef_MsgType::TypeDef_MsgType_RESP);
+        msgCarrier.set_msg_type(reqId == 0 ? eddid::TypeDef_MsgType::TypeDef_MsgType_PUSH : eddid::TypeDef_MsgType::TypeDef_MsgType_RESP);
         if(reqType == 1 || reqType == 0){// heartbeat
-            ed::HeartbeatResp heartbeatResp;
+            eddid::HeartbeatResp heartbeatResp;
             heartbeatResp.set_error_code(resJson["status"].asInt());
             heartbeatResp.set_error_msg("");
             heartbeatResp.set_server_time(resJson["servertime"].asString());
-            msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_HEARTBEAT);
+            msgCarrier.set_req_type(eddid::TypeDef_ReqType::TypeDef_ReqType_HEARTBEAT);
             msgCarrier.set_data(heartbeatResp.SerializeAsString());
         }
         else if(reqType == 153){// query quote info
-            ed::QuoteInfo quoteInfo;
+            eddid::QuoteInfo quoteInfo;
             if (!resJson["data"]["symbol"].empty()){
                 auto oneQuoteInfo = resJson["data"]["symbol"][0];
                 UpdateQuoteProtoByJson(oneQuoteInfo, quoteInfo);
-                msgCarrier.set_msg_type(ed::TypeDef_MsgType::TypeDef_MsgType_PUSH);
-                msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_PUSH_QUOTES);
+                msgCarrier.set_msg_type(eddid::TypeDef_MsgType::TypeDef_MsgType_PUSH);
+                msgCarrier.set_req_type(eddid::TypeDef_ReqType::TypeDef_ReqType_PUSH_QUOTES);
                 msgCarrier.set_data(quoteInfo.SerializeAsString());
                 std::string type = std::to_string(oneQuoteInfo["market"].asInt()) + "|" + oneQuoteInfo["code"].asString();
                 m_type2quoteMap[type] = quoteInfo;
             }
         }
         else if(reqType == 200){// sub res
-            ed::SubQuotesResp subResp;
+            eddid::SubQuotesResp subResp;
             subResp.set_error_code(std::atoi(resJson["data"]["ret"].asString().c_str()));
-            msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES);
+            msgCarrier.set_req_type(eddid::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES);
             msgCarrier.set_data(subResp.SerializeAsString());
         }
         else if(reqType == 150){// unsub res  / k line res also is 150 (wtf)
             auto dataJson = resJson["data"];
             if(dataJson.isMember("ret")){
-                ed::UnSubQuotesResp unSubResp;
+                eddid::UnSubQuotesResp unSubResp;
                 unSubResp.set_error_code(std::atoi(resJson["data"]["ret"].asString().c_str()));
-                msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_UNSUB_QUOTES);
+                msgCarrier.set_req_type(eddid::TypeDef_ReqType::TypeDef_ReqType_UNSUB_QUOTES);
                 msgCarrier.set_data(unSubResp.SerializeAsString());
             }
             else{
-                ed::QueryKLineResp queryKLineRes;
+                eddid::QueryKLineResp queryKLineRes;
                 if(resJson["status"].asInt() != 0){
                     queryKLineRes.set_error_code(resJson["status"].asInt());
                     queryKLineRes.set_error_msg(resJson["msg"].asString());
@@ -231,7 +232,7 @@ public:
                         }
                     }
                 }
-                msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_K_LINE);
+                msgCarrier.set_req_type(eddid::TypeDef_ReqType::TypeDef_ReqType_K_LINE);
                 msgCarrier.set_data(queryKLineRes.SerializeAsString());
             }
         }
@@ -242,8 +243,8 @@ public:
                 auto it = m_type2quoteMap.find(type);
                 if(it != m_type2quoteMap.end()){
                     UpdateQuoteProtoByJson(oneQuoteInfo, it->second);
-                    msgCarrier.set_msg_type(ed::TypeDef_MsgType::TypeDef_MsgType_PUSH);
-                    msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_PUSH_QUOTES);
+                    msgCarrier.set_msg_type(eddid::TypeDef_MsgType::TypeDef_MsgType_PUSH);
+                    msgCarrier.set_req_type(eddid::TypeDef_ReqType::TypeDef_ReqType_PUSH_QUOTES);
                     msgCarrier.set_data(it->second.SerializeAsString());
                 }
             }
@@ -254,13 +255,13 @@ public:
                 std::string type = std::to_string(oneTickInfo["market"].asInt()) + "|" + oneTickInfo["code"].asString();
                 auto it = m_type2insInfoMap.find(type);
                 if(it != m_type2insInfoMap.end()){
-                    ed::TickInfo tickInfo;
+                    eddid::TickInfo tickInfo;
                     tickInfo.mutable_ins_info()->CopyFrom(it->second);
                     tickInfo.set_price(oneTickInfo["price"].asDouble());
                     tickInfo.set_volume(oneTickInfo["volume"].asInt());
                     tickInfo.set_time(oneTickInfo["time"].asString());//TODO
-                    msgCarrier.set_msg_type(ed::TypeDef_MsgType::TypeDef_MsgType_PUSH);
-                    msgCarrier.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_PUSH_TICKS);
+                    msgCarrier.set_msg_type(eddid::TypeDef_MsgType::TypeDef_MsgType_PUSH);
+                    msgCarrier.set_req_type(eddid::TypeDef_ReqType::TypeDef_ReqType_PUSH_TICKS);
                     msgCarrier.set_data(tickInfo.SerializeAsString());
                 }
             }
@@ -272,7 +273,7 @@ public:
         return 0;
     }
 
-    static void UpdateQuoteProtoByJson(const Json::Value& quoteJson, ed::QuoteInfo& quoteProto)
+    static void UpdateQuoteProtoByJson(const Json::Value& quoteJson, eddid::QuoteInfo& quoteProto)
     {
         if(quoteProto.bids_size() < 10 || quoteProto.asks_size() < 10){
             quoteProto.CopyFrom(m_template);
@@ -367,55 +368,55 @@ public:
         
     }
 
-    static ed::TypeDef::Exchange MarketId2Exchange(int market)
+    static eddid::TypeDef::Exchange MarketId2Exchange(int market)
     {
         switch(market)
         {
         case 2011:case 2015:case 2009:case 2010:
-            return ed::TypeDef_Exchange::TypeDef_Exchange_HKFE;
+            return eddid::TypeDef_Exchange::TypeDef_Exchange_HKFE;
         case 2002:case 2031:case 2005:case 2003:case 2004:case 2000:case 2001:
-            return ed::TypeDef_Exchange::TypeDef_Exchange_SEHK;
+            return eddid::TypeDef_Exchange::TypeDef_Exchange_SEHK;
         case 40001:case 40002: case 40003:case 40004:case 40005:case 40006:case 40007:
-            return ed::TypeDef_Exchange::TypeDef_Exchange_ASE;
+            return eddid::TypeDef_Exchange::TypeDef_Exchange_ASE;
         case 50000:case 50101:case 50102:case 50103:case 50104:case 50105:
         case 50106:case 50107:case 50108:case 50109:case 50110:
-            return ed::TypeDef_Exchange::TypeDef_Exchange_CBOT;
+            return eddid::TypeDef_Exchange::TypeDef_Exchange_CBOT;
         case 50001:case 51201:case 51202:case 51203:case 51204:case 51205:case 51206:
-            return ed::TypeDef_Exchange::TypeDef_Exchange_COMEX;
+            return eddid::TypeDef_Exchange::TypeDef_Exchange_COMEX;
         case 50002:case 52301:case 52302:case 52303:case 52304:
-            return ed::TypeDef_Exchange::TypeDef_Exchange_NYMEX;
+            return eddid::TypeDef_Exchange::TypeDef_Exchange_NYMEX;
         case 50003:case 50004:case 53401:case 53402:case 53403:case 53404:case 54501:
         case 54502:case 54503:case 54504:case 54505:case 54506:case 54507:case 54508:case 54509:case 54510:
-            return ed::TypeDef_Exchange::TypeDef_Exchange_CME;
+            return eddid::TypeDef_Exchange::TypeDef_Exchange_CME;
         case 50005:case 55601:case 55602:case 55603:
-            return ed::TypeDef_Exchange::TypeDef_Exchange_SGX;
+            return eddid::TypeDef_Exchange::TypeDef_Exchange_SGX;
         default:
-            return ed::TypeDef_Exchange::TypeDef_Exchange_EXCHANGE_UNKNOW;
+            return eddid::TypeDef_Exchange::TypeDef_Exchange_EXCHANGE_UNKNOW;
         }
     }
 
-    static ed::TypeDef::Currency CurrencyCode2type(const std::string currencyCode)
+    static eddid::TypeDef::Currency CurrencyCode2type(const std::string currencyCode)
     {
         if(currencyCode == "CNY"){
-            return ed::TypeDef_Currency::TypeDef_Currency_CNY;
+            return eddid::TypeDef_Currency::TypeDef_Currency_CNY;
         }
         else if(currencyCode == "USD"){
-            return ed::TypeDef_Currency::TypeDef_Currency_USD;
+            return eddid::TypeDef_Currency::TypeDef_Currency_USD;
         }
         else if(currencyCode == "HKD"){
-            return ed::TypeDef_Currency::TypeDef_Currency_HKD;
+            return eddid::TypeDef_Currency::TypeDef_Currency_HKD;
         }
         else if(currencyCode == "EUR"){
-            return ed::TypeDef_Currency::TypeDef_Currency_EUR;
+            return eddid::TypeDef_Currency::TypeDef_Currency_EUR;
         }
         else if(currencyCode == "GBP"){
-            return ed::TypeDef_Currency::TypeDef_Currency_GBP;
+            return eddid::TypeDef_Currency::TypeDef_Currency_GBP;
         }
         else if(currencyCode == "JPY"){
-            return ed::TypeDef_Currency::TypeDef_Currency_JPY;
+            return eddid::TypeDef_Currency::TypeDef_Currency_JPY;
         }
         else {
-            return ed::TypeDef_Currency::TypeDef_Currency_CURRENCY_UNKNOWN;
+            return eddid::TypeDef_Currency::TypeDef_Currency_CURRENCY_UNKNOWN;
         }
     }
 
@@ -451,29 +452,29 @@ public:
 
 public:
     static Json::Value queryMarketJson;
-    static ed::QueryAllInsInfoResp m_allInsInfoResProto;
+    static eddid::QueryAllInsInfoResp m_allInsInfoResProto;
     static std::string m_queryAllInsResStr;
     // exchange|trade code(合约id) -> market, code(订阅id)
     static std::unordered_map<std::string, std::tuple<int, std::string>> m_subChangeMap;
     // quote info template
-    static ed::QuoteInfo m_template;
-    static std::unordered_map<std::string, ed::QuoteInfo> m_type2quoteMap;//market|code -> quote info
+    static eddid::QuoteInfo m_template;
+    static std::unordered_map<std::string, eddid::QuoteInfo> m_type2quoteMap;//market|code -> quote info
     static std::vector<std::string> m_buyKey;
     static std::vector<std::string> m_sellKey;
     // open time 
     static std::unordered_map<int, std::string> m_market2timeMap;
-    static std::unordered_map<std::string, ed::InsInfo> m_type2insInfoMap;//market|code -> ins info
+    static std::unordered_map<std::string, eddid::InsInfo> m_type2insInfoMap;//market|code -> ins info
 };
 
-ed::QueryAllInsInfoResp ConvertUtils::m_allInsInfoResProto;
+eddid::QueryAllInsInfoResp ConvertUtils::m_allInsInfoResProto;
 std::string ConvertUtils::m_queryAllInsResStr{""};
 std::unordered_map<std::string, std::tuple<int, std::string>> ConvertUtils::m_subChangeMap;
-ed::QuoteInfo ConvertUtils::m_template;
-std::unordered_map<std::string, ed::QuoteInfo> ConvertUtils::m_type2quoteMap;
+eddid::QuoteInfo ConvertUtils::m_template;
+std::unordered_map<std::string, eddid::QuoteInfo> ConvertUtils::m_type2quoteMap;
 std::vector<std::string> ConvertUtils::m_buyKey{"buyprice0", "buyprice1", "buyprice2", "buyprice3", "buyprice4", "buyprice5", "buyprice6", "buyprice7", "buyprice8", "buyprice9", 
                                                 "buyvol0", "buyvol1", "buyvol2", "buyvol3", "buyvol4", "buyvol5", "buyvol6", "buyvol7", "buyvol8", "buyvol9"};
 std::vector<std::string> ConvertUtils::m_sellKey{"sellprice0", "sellprice1", "sellprice2", "sellprice3", "sellprice4", "sellprice5", "sellprice6", "sellprice7", "sellprice8", "sellprice9", 
                                                 "sellvol0", "sellvol1", "sellvol2", "sellvol3", "sellvol4", "sellvol5", "sellvol6", "sellvol7", "sellvol8", "sellvol9"};
 std::unordered_map<int, std::string> ConvertUtils::m_market2timeMap;
 Json::Value ConvertUtils::queryMarketJson;
-std::unordered_map<std::string, ed::InsInfo> ConvertUtils::m_type2insInfoMap;
+std::unordered_map<std::string, eddid::InsInfo> ConvertUtils::m_type2insInfoMap;

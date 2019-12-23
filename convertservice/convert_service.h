@@ -28,10 +28,11 @@ public:
     void OnLevDisConnect(CContext* conn);
     void OnLevError(CContext* conn, int err, const char* err_msg);
     void SendReq(std::string& msg);
-
+    void Resub();
 private:
     static void OnSendHeartbeatTimer(evutil_socket_t fd, short event, void* args);
     static void OnQueryInsInfoTimer(evutil_socket_t fd, short event, void* args);
+    static void OnResubTimer(evutil_socket_t fd, short event, void* args);
     std::string PackMsg(const std::string& RawMsg);
     std::string UnPackMsg(const std::string& RawMsg);
 private:
@@ -45,6 +46,7 @@ private:
     // event for send heartbeat
     event* m_heartbeatEv;
     event* m_queryAllInsEv;
+    event* m_resubEv;
     // req/res model
     int m_reqId;
     std::unordered_map<int64_t, CContext*> m_id2ctxMap;//(req_id -> ctx)

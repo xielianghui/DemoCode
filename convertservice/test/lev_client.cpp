@@ -51,11 +51,11 @@ int main(int args, char** argv)
     int type = std::atoi(argv[3]); // type: 0-获取所有合约信息  1-查询K线   2-订阅行情 3-订阅逐笔
     if(type == 0){
         // pack req
-        ed::MsgCarrier mc;
+        eddid::MsgCarrier mc;
         mc.set_req_id(1);
-        mc.set_msg_type(ed::TypeDef_MsgType::TypeDef_MsgType_REQ);
-        mc.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_ALL_INS_INFO);
-        ed::QueryAllInsInfo query;
+        mc.set_msg_type(eddid::TypeDef_MsgType::TypeDef_MsgType_REQ);
+        mc.set_req_type(eddid::TypeDef_ReqType::TypeDef_ReqType_ALL_INS_INFO);
+        eddid::QueryAllInsInfo query;
         mc.set_data(query.SerializeAsString());
         std::string RawMsg = mc.SerializeAsString();
         // add pkg hdl
@@ -86,13 +86,13 @@ int main(int args, char** argv)
                 }
                 else{
                     std::string resStr(lastMsg.data() + eddid::COMMON_HDR_LEN, dataLen);
-                    ed::MsgCarrier mcRes;
+                    eddid::MsgCarrier mcRes;
                     if (!mcRes.ParseFromString(resStr)){
                         printf("mc parse failed, msg:%s\n", resStr.c_str());
                         break;
                     }
-                    if (mcRes.req_type() == ed::TypeDef_ReqType::TypeDef_ReqType_ALL_INS_INFO){
-                        ed::QueryAllInsInfoResp queryRes;
+                    if (mcRes.req_type() == eddid::TypeDef_ReqType::TypeDef_ReqType_ALL_INS_INFO){
+                        eddid::QueryAllInsInfoResp queryRes;
                         if (!queryRes.ParseFromString(mcRes.data())){
                             printf("query ins info res parse failed, msg:%s\n", mcRes.data());
                             return -1;
@@ -123,13 +123,13 @@ int main(int args, char** argv)
     }
     else if(type == 1){
         // pack req
-        ed::MsgCarrier mc;
+        eddid::MsgCarrier mc;
         mc.set_req_id(1);
-        mc.set_msg_type(ed::TypeDef_MsgType::TypeDef_MsgType_REQ);
-        mc.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_K_LINE);
-        ed::QueryKLine query;
-        query.set_type(ed::TypeDef_KLineType::TypeDef_KLineType_KLT_MINUTE);
-        query.set_exchange(ed::TypeDef_Exchange::TypeDef_Exchange_SEHK);
+        mc.set_msg_type(eddid::TypeDef_MsgType::TypeDef_MsgType_REQ);
+        mc.set_req_type(eddid::TypeDef_ReqType::TypeDef_ReqType_K_LINE);
+        eddid::QueryKLine query;
+        query.set_type(eddid::TypeDef_KLineType::TypeDef_KLineType_KLT_MINUTE);
+        query.set_exchange(eddid::TypeDef_Exchange::TypeDef_Exchange_SEHK);
         query.set_ins_id("00700");
         query.set_start_time("2019-12-20 01:30:00");
         query.set_end_time("2019-12-20 01:35:00");
@@ -163,13 +163,13 @@ int main(int args, char** argv)
                 }
                 else{
                     std::string resStr(lastMsg.data() + eddid::COMMON_HDR_LEN, dataLen);
-                    ed::MsgCarrier mcRes;
+                    eddid::MsgCarrier mcRes;
                     if (!mcRes.ParseFromString(resStr)){
                         printf("mc parse failed, msg:%s\n", resStr.c_str());
                         break;
                     }
-                    if (mcRes.req_type() == ed::TypeDef_ReqType::TypeDef_ReqType_K_LINE){
-                        ed::QueryKLineResp queryRes;
+                    if (mcRes.req_type() == eddid::TypeDef_ReqType::TypeDef_ReqType_K_LINE){
+                        eddid::QueryKLineResp queryRes;
                         if (!queryRes.ParseFromString(mcRes.data())){
                             printf("query K line res parse failed, msg:%s\n", mcRes.data());
                             return -1;
@@ -203,19 +203,19 @@ int main(int args, char** argv)
         std::cout<<"Input exchange code:"<<std::endl;
         std::cin>>exchange>>code;
         // pack req
-        ed::MsgCarrier mc;
+        eddid::MsgCarrier mc;
         mc.set_req_id(1);
-        mc.set_msg_type(ed::TypeDef_MsgType::TypeDef_MsgType_REQ);
-        mc.set_req_type(ed::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES);
-        ed::SubQuotes sub;
+        mc.set_msg_type(eddid::TypeDef_MsgType::TypeDef_MsgType_REQ);
+        mc.set_req_type(eddid::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES);
+        eddid::SubQuotes sub;
         if(type == 2){
-            sub.set_type(ed::TypeDef_SubType::TypeDef_SubType_QUOTES);
+            sub.set_type(eddid::TypeDef_SubType::TypeDef_SubType_QUOTES);
         }
         else{
-            sub.set_type(ed::TypeDef_SubType::TypeDef_SubType_TICK);
+            sub.set_type(eddid::TypeDef_SubType::TypeDef_SubType_TICK);
         }
         
-        sub.set_exchange((ed::TypeDef_Exchange)exchange);
+        sub.set_exchange((eddid::TypeDef_Exchange)exchange);
         sub.set_ins_id(code);
         mc.set_data(sub.SerializeAsString());
         std::string RawMsg = mc.SerializeAsString();
@@ -242,14 +242,14 @@ int main(int args, char** argv)
                 eddid::ST_COMMONHDR* pHdl = (eddid::ST_COMMONHDR*) hdl;
                 int dataLen = pHdl->data_len_;
                 std::string resStr(buf + pos + eddid::COMMON_HDR_LEN, dataLen);
-                ed::MsgCarrier mcRes;
+                eddid::MsgCarrier mcRes;
                 if (!mcRes.ParseFromString(resStr)){
                     printf("mc parse failed, msg:%s\n", resStr.c_str());
                     break;
                 }
 
-                if (mcRes.req_type() == ed::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES){
-                    ed::SubQuotesResp subRes;
+                if (mcRes.req_type() == eddid::TypeDef_ReqType::TypeDef_ReqType_SUB_QUOTES){
+                    eddid::SubQuotesResp subRes;
                     if (!subRes.ParseFromString(mcRes.data())){
                         printf("sub res parse failed, msg:%s\n", mcRes.data());
                         return -1;
@@ -258,7 +258,7 @@ int main(int args, char** argv)
                 }
                 else{
                     if(type == 2){
-                        ed::QuoteInfo quoteInfo;
+                        eddid::QuoteInfo quoteInfo;
                         if (!quoteInfo.ParseFromString(mcRes.data()))
                         {
                             printf("quote info parse failed, msg:%s\n", mcRes.data());
@@ -267,7 +267,7 @@ int main(int args, char** argv)
                         std::cout << quoteInfo.DebugString() << std::endl;
                     }
                     else{
-                        ed::TickInfo tickInfo;
+                        eddid::TickInfo tickInfo;
                         if (!tickInfo.ParseFromString(mcRes.data()))
                         {
                             printf("quote info parse failed, msg:%s\n", mcRes.data());

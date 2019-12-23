@@ -6,7 +6,7 @@ int main()
 {
     std::string lwsAddr = "119.23.15.70";
     int lwsPort = 8500;
-    std::string levAddr = "127.0.0.1";
+    std::string levAddr = "0.0.0.0";
     std::vector<int> levPortVec{8031, 8032};
     ConvertService srv;
     srv.Init();

@@ -85,7 +85,7 @@ int LwsClient::Connect(std::string addr, int port)
     // create context
     pCtx = lws_create_context(&ctxInfo);
     if(!pCtx){
-        printf("Create ctx failed\n");
+        std::cout<<"lws_create_context() failed"<<std::endl;
         return -1;
     }
     // connect info set
@@ -101,17 +101,17 @@ int LwsClient::Connect(std::string addr, int port)
     // create connect
     pWsi = lws_client_connect_via_info(&conInfo);
     if(!pWsi){
-        printf("Create ctx failed\n");
+        std::cout<<"lws_client_connect_via_info() failed"<<std::endl;
         return -1;
     }
     // run timer
     if(!m_pEvBase){
-        puts("Empty event_base pointer\n");
+        std::cout<<"Empty event_base pointer"<<std::endl;
         return -1;
     }
     m_lpTimerEv = event_new(m_pEvBase, -1, EV_PERSIST , OnRunTimer, this);
     if (m_lpTimerEv == nullptr) {
-        puts("event_new() run timer failed\n");
+        std::cout<<"event_new() run timer failed"<<std::endl;
         return -1;
     }
     timeval tv;
