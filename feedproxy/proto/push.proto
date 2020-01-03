@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package eddid;
+
+import "typedef.proto";
+
+message PriceEntry
+{
+    double price = 1;      // 价格
+    int64 volume = 2;      // 数量
+}
+
+message InsInfo
+{
+    TypeDef.Exchange exchange = 1; // 交易所ID
+    string product_code = 2;       // 品种代码
+    string ins_id = 3;             // 合约ID
+}
+
+message QuoteInfo
+{
+    // 行情静态数据
+    TypeDef.ProductType product_type = 1;  // 品种类型
+    string trading_date = 2;       // 交易日
+    InsInfo ins_info = 3;          // 行情合约信息
+    string ins_name = 4;           // 合约名称
+    string ins_en_name = 5;        // 合约英文名
+    double raise_limit = 6;        // 涨停价
+    double down_limit = 7;         // 跌停价
+    double last_close = 8;         // 收盘价
+    double pre_settle_price = 9;   // 前结价
+    int64 last_hold = 10;          // 昨持仓
+    // 行情快照
+    double open = 11;               // 开盘价
+    double high = 12;               // 最高价
+    double low = 13;                // 最低价
+    double close = 14;              // 收盘价
+    double last_price = 15;         // 最新价
+    double total_amount = 16;       // 成交总金额
+    int64 total_volume = 17;        // 成交总量
+    double avg_price = 18;          // 当日均价
+    string time = 19;               // 时间
+    int32 millisecond = 20;         // 最后修改毫秒
+    // 期货私有快照
+    int64 hold = 21;                // 持仓量
+    double settle_price = 22;       // 结算价
+    // 盘口数据
+    int64 buy_volume = 23;           // 买盘数量
+    int64 sell_volume = 24;          // 卖盘数量
+    repeated PriceEntry bids = 25;   // 买盘队列
+    repeated PriceEntry asks = 26; // 卖盘队列
+}
+
+message QuoteInfos
+{
+    repeated QuoteInfo data = 1;
+}
+
+// 逐笔行情
+message TickInfo
+{
+    InsInfo ins_info = 1;          // 行情合约信息
+    double price = 2;              // 成交价
+    int32 volume = 3;              // 成交量
+    string time = 4;               // 成交时间
+}
