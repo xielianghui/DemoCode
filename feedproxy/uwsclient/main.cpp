@@ -1,30 +1,27 @@
 #include <iostream>
 
-#include "../thirdparty/uWS/uWS.h"
+#include "uws_client.h"
 
 //g++ -std=c++17 -pthread ../thirdparty/uWS/*.cpp main.cpp -o a -luv -lssl -lcrypto -lz
 
 
-static void OnConnect(uWS::WebSocket<uWS::CLIENT> *ws, uWS::HttpRequest /*req*/)
-{
-    std::cout<<"OnConnect(), ws"<<(intptr_t)ws<<std::endl;
-    std::string reqStr = "{\"reqtype\": 150,\"session\": \"\",\"data\": {\"market\": 2002,\"code\": \"00700\",\"klinetype\": 1,\"weight\": 0,\"timetype\": 0,\"time0\": \"2019-12-20 01:30:00\",\"time1\": \"2019-12-20 01:35:00\"}}";
-    ws->send(reqStr.c_str());
-}
 
-static void OnMessage(uWS::WebSocket<uWS::CLIENT> *ws, char *data, size_t len, uWS::OpCode type)
+static void OnMessage(std::vector<std::string>&& resVec)
 {
-    std::cout<<"OnMessage(), ws"<<(intptr_t)ws<<std::endl;
-    std::string res(data, len);
-    std::cout<<"Recv: "<<res<<std::endl;
+    for(auto& it : resVec)
+    {
+        std::cout<<it<<std::endl;
+    }
 }
 
 int main()
 {
-    uWS::Hub hub;
-    hub.onConnection(&OnConnect);
-    hub.connect("ws://120.78.155.211:8500");
-    hub.onMessage(&OnMessage);
-    hub.run();
+    struct event_base* base = event_base_new();
+    UwsClient uClient;
+    uClient.Register(base, &OnMessage);
+    uClient.Connect("120.78.155.211", 8500);
+    
+    event_base_dispatch(base);
+    event_base_free(base);
     return 0;
 }
