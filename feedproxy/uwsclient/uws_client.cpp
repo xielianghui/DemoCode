@@ -15,12 +15,8 @@ void UwsClient::Register(event_base* base, OnRecv cb)
         std::cout<<"Uws connect"<<std::endl;
     });
     m_hub.onMessage([this](uWS::WebSocket<uWS::CLIENT> *ws, char *data, size_t len, uWS::OpCode type) {
-        this->m_mtx.lock();
-        this->m_resVec.emplace_back(std::string(data, len));
-        this->m_mtx.unlock();
-        this->m_notify->Notify();
+        this->m_notify->Notify(std::string(data, len));
     });
-
     m_notify = std::make_shared<EventNotify<UwsClient>>(base, this, &UwsClient::OnNotify);
     m_notify->Init();
 }
@@ -50,11 +46,7 @@ void UwsClient::Run()
     m_hub.run();
 }
 
-void UwsClient::OnNotify()
+void UwsClient::OnNotify(std::string&& msg)
 {
-    std::vector<std::string> resVec;
-    m_mtx.lock();
-    resVec.swap(m_resVec);
-    m_mtx.unlock();
-    (*m_cb)(std::move(resVec));
+    (*m_cb)(std::move(msg));
 }

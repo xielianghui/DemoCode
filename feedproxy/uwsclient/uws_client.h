@@ -2,8 +2,6 @@
 #include <iostream>
 #include <memory>
 #include <thread>
-#include <mutex>
-#include <vector>
 
 #include "../public/event_notify.h"
 #include "../thirdparty/uWS/uWS.h"
@@ -12,7 +10,7 @@
 class UwsClient final
 {
 public:
-    typedef void(*OnRecv)(std::vector<std::string>&&);
+    typedef void(*OnRecv)(std::string&&);
 
     UwsClient();
     UwsClient(event_base* pEvBase);
@@ -23,12 +21,10 @@ public:
     int Connect(std::string addr, int port);
 private:
     void Run();
-    void OnNotify();
+    void OnNotify(std::string&& msg);
     static void OnConnect(uWS::WebSocket<uWS::CLIENT> *ws, uWS::HttpRequest /*req*/);
     static void OnMessage(uWS::WebSocket<uWS::CLIENT> *ws, char *data, size_t len, uWS::OpCode type);
 public:
-    std::mutex m_mtx;
-    std::vector<std::string> m_resVec;
     uWS::WebSocket<uWS::CLIENT>* m_ws;
     std::shared_ptr<EventNotify<UwsClient>> m_notify;
 private:

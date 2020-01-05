@@ -4,7 +4,7 @@ project(convertservice)
 list(APPEND add_cppflags -Wall -Wextra -std=c++17 -g)
 list(APPEND add_libraries pthread protobuf event jsoncpp websockets)
 
-include_directories(/usr/local/include ../levservice ../lwsclient ../proto/gen_cpp)
+include_directories(/usr/local/include ../public ../levservice ../lwsclient ../proto/gen_cpp)
 
 file(GLOB project_sources ./*.h ./*.cpp 
                           ../levservice/ev_loop.cpp ${FEED_PROXY_DIRS}lwsclient/lws_client.cpp)
