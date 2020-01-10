@@ -5,8 +5,7 @@
 #include <unordered_map>
 
 #include "lev_callback.h"
-#include "lws_callback.h"
-
+#include "uws_client_multi_recon.h"
 
 class ConvertService
 {
@@ -17,30 +16,27 @@ public:
     ~ConvertService();
 public:
     int Init();
-    int InitLwsClient(std::string& addr, int port);
+    int InitUwsClient(std::string& addr, int port);
     int InitLevService(std::string& addr, const std::vector<int>& portVec);
     // libwebsockets thread
-    void OnLwsRecvMsg(std::string&& msg);
-    void OnLwsConnect();
+    void OnUwsRecvMsg(std::vector<std::string>&& resVec);
     // libevent thread
     void OnLevAccept(CContext* conn, const char* peer, uint32_t len);
     void OnLevReadDone(CContext* conn, evbuffer*&& recv_data);
     void OnLevDisConnect(CContext* conn);
     void OnLevError(CContext* conn, int err, const char* err_msg);
     void SendReq(std::string& msg);
-    void Resub();
     void CheckClientAlive();
 private:
     static void OnSendHeartbeatTimer(evutil_socket_t fd, short event, void* args);
     static void OnQueryInsInfoTimer(evutil_socket_t fd, short event, void* args);
-    static void OnResubTimer(evutil_socket_t fd, short event, void* args);
     std::string PackMsg(const std::string& RawMsg);
     int ProcessReq(CContext* conn, const std::string& reqStr);
+    int ProcessRes(std::string& res);
 private:
     std::string m_lastMsg;
     // libwebsockets
-    std::shared_ptr<LwsCltCbHdl> m_lwsCbPtr;
-    std::shared_ptr<LwsClient> m_lwsClientPtr;
+    std::shared_ptr<UwsClient<ConvertService>> m_uwsClientPtr;
     // tcp service
     eddid::event_wrap::EvLoop m_loopHdl;
     std::shared_ptr<LevSrvCbHdl> m_cbPtr;
@@ -48,7 +44,6 @@ private:
     // event for send heartbeat
     event* m_heartbeatEv;
     event* m_queryAllInsEv;
-    event* m_resubEv;
     // req/res model
     int m_reqId;
     std::unordered_map<int64_t, CContext*> m_id2ctxMap;//(req_id -> ctx)

@@ -20,7 +20,7 @@
 #include "msg_carrier.pb.h"
 #include "query.pb.h"
 #include "push.pb.h"
-#include "../common_hdr.h"
+#include "common_hdr.h"
 
 //struct timeval start_tv;
 //struct timeval end_tv;
@@ -28,7 +28,7 @@
 //gettimeofday(&end_tv, NULL);
 //printf("Use %f s\n",(end_tv.tv_sec - start_tv.tv_sec + (double)(end_tv.tv_usec - start_tv.tv_usec) / 1000000));
 
-//g++ -lpthread -std=c++17 ../lev_client.cpp ../../proto/gen_cpp/*.cc -g -o levclient -I ../../proto/gen_cpp -lprotobuf
+//g++ -lpthread -std=c++17 ../lev_client.cpp ../../../proto/gen_cpp/*.cc -g -o levclient -I ../../../proto/gen_cpp -I ../../../public -lprotobuf
 int main(int args, char** argv)
 {
     if(args < 4)
@@ -226,7 +226,7 @@ int main(int args, char** argv)
             auto it = sub.add_info();
             it->set_type(eddid::TypeDef_SubType::TypeDef_SubType_QUOTES);
             it->set_exchange((eddid::TypeDef_Exchange)16);
-            it->set_ins_id("THSIC0");
+            it->set_ins_id("HSIF0");
         }
         else{
             auto it = sub.add_info();

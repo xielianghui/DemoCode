@@ -7,21 +7,18 @@
 
 #include <event.h>
 
-#include "common_hdr.h"
-
 #define READ 0
 #define WRITE 1
-#define ONE_RECV_SIZE 2048
 
 static int fds[2]{-1, -1};
-static char recvBuf[ONE_RECV_SIZE]{0};
-static std::string recvMsg;
+static char sendMsg{'x'};
+static char recvBuf[65536]{0};
 
 template<typename T>
 class EventNotify
 {
     public:
-        typedef void(T::*OnEventNotify)(std::string&&);
+        typedef void(T::*OnEventNotify)();
 
         EventNotify() = delete;
         EventNotify(event_base* pEvBase, T* pService, OnEventNotify notify):
@@ -65,54 +62,31 @@ class EventNotify
             }
             timeval tv;
             evutil_timerclear(&tv);
-            tv.tv_usec = 200000;// 200ms
+            tv.tv_usec = 500000;// 200ms
             event_add(m_ev, &tv);
             return 0;
         }
 
-        void Notify(const std::string& sendMsg)
+        void Notify()
         {
-            std::string data;
-            data.resize(sendMsg.size() + eddid::COMMON_HDR_LEN);
-            eddid::ST_COMMONHDR* pHdr = (eddid::ST_COMMONHDR*)data.data();
-            new (pHdr) eddid::ST_COMMONHDR(0, sendMsg.size());
-            memcpy(data.data() + eddid::COMMON_HDR_LEN, sendMsg.data(), sendMsg.size());
-			write(fds[WRITE], data.c_str(), data.size());
+			write(fds[WRITE], &sendMsg, 1);
         }
 
     private:
         static void OnRecv(evutil_socket_t fd, short event, void* args)
         {
-            int len{0};
-            while((len = read(fds[READ], recvBuf, ONE_RECV_SIZE)) > 0)
-            {
-                recvMsg.append(std::string(recvBuf, len));
-            }
-            while(true)
-            {
-                char hdl[eddid::COMMON_HDR_LEN];
-                memcpy(hdl, recvMsg.data(), eddid::COMMON_HDR_LEN);
-                eddid::ST_COMMONHDR *pHdl = (eddid::ST_COMMONHDR *)hdl;
-                int dataLen = pHdl->data_len_;
-                if (dataLen + eddid::COMMON_HDR_LEN > recvMsg.size()){
-                    break;
-                }
-                else{
-                    std::string realMsg(recvMsg.data() + eddid::COMMON_HDR_LEN, dataLen);
-                    EventNotify<T> *pThis = reinterpret_cast<EventNotify<T> *>(args);
-                    if (pThis){
-                        OnEventNotify cb = pThis->m_notify;
-                        (pThis->m_mainService->*cb)(std::move(realMsg));
-                    }
-                    recvMsg = recvMsg.substr(eddid::COMMON_HDR_LEN + dataLen);
-                    if(recvMsg.size() < eddid::COMMON_HDR_LEN) break;
+            int len = read(fds[READ], recvBuf, 65536);
+            if(len > 0){
+                EventNotify<T> *pThis = reinterpret_cast<EventNotify<T>*>(args);
+                if (pThis){
+                    OnEventNotify cb = pThis->m_notify;
+                    (pThis->m_mainService->*cb)();
                 }
             }
         }
     public:
+        event_base* m_eventBase;
         T* m_mainService;
         OnEventNotify m_notify;
-        event_base* m_eventBase;
         event* m_ev;
-        
 };

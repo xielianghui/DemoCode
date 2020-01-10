@@ -72,14 +72,13 @@ int ConvertService::Init()
 
 }
 
-int ConvertService::InitLwsClient(std::string& addr, int port)
+int ConvertService::InitUwsClient(std::string& addr, int port)
 {
     event_base* pEvBase = m_loopHdl.GetWorkLoop();
     m_loopHdl.Increment(pEvBase);
-    m_lwsClientPtr = std::make_shared<LwsClient>(pEvBase);
-    m_lwsCbPtr = std::make_shared<LwsCltCbHdl>(this);
-    m_lwsClientPtr->Register(m_lwsCbPtr.get());
-    m_lwsClientPtr->Connect(addr, port);
+    m_uwsClientPtr = std::make_shared<UwsClient<ConvertService>>(this);
+    m_uwsClientPtr->Register(pEvBase, &ConvertService::OnUwsRecvMsg);
+    m_uwsClientPtr->Connect(addr, port);
     return 0;
 }
 
@@ -106,15 +105,6 @@ int ConvertService::InitLevService(std::string& addr, const std::vector<int>& po
         return -1;
     }
     event_add(m_queryAllInsEv, &tv);
-    // attach  resub timer to loop
-    evutil_timerclear(&tv);
-    tv.tv_sec = 4 * 60;
-    m_resubEv = event_new(pEvBase, -1, EV_PERSIST , OnResubTimer, this);
-    if (m_resubEv == nullptr) {
-        std::cout<<"event_new() resub timer failed"<<std::endl;
-        return -1;
-    }
-    event_add(m_resubEv, &tv);
 
     if (m_loopHdl.Start() != 0) {
         m_loopHdl.Release();
@@ -134,28 +124,36 @@ int ConvertService::InitLevService(std::string& addr, const std::vector<int>& po
     return 0;
 }
 
-void ConvertService::OnLwsRecvMsg(std::string&& msg)
+void ConvertService::OnUwsRecvMsg(std::vector<std::string>&& resVec)
 {
-    //printf("Lws Recv:%s\n", msg.c_str());
+    for(auto& it : resVec)
+    {
+        ProcessRes(it);
+    }
+}
+
+int ConvertService::ProcessRes(std::string& res)
+{
+    //printf("Uws Recv:%s\n", msg.c_str());
     Json::Value resJson;
     Json::Reader jsonReader;
-    if (!jsonReader.parse(msg, resJson)){
-        std::cout<<"Parse json failed, msg:"<<msg<<std::endl;
-        return;
+    if (!jsonReader.parse(res, resJson)){
+        std::cout<<"Parse json failed, msg:"<<res<<std::endl;
+        return 0;
     }
     int64_t reqId;
     std::vector<std::string> resProtoStrVec;
     int ret = ConvertUtils::JsonRes2ProtoRes(reqId, resJson, resProtoStrVec);
     if(ret < 0){
-        std::cout<<"JsonRes2ProtoRes() failed, msg:"<<msg<<std::endl;
-        return;
+        std::cout<<"JsonRes2ProtoRes() failed, msg:"<<res<<std::endl;
+        return -1;
     }
 
     if(reqId == 1){// internal heartbeat
-        return;
+        return 0;
     }
     else if(reqId == 2){// internal unsub res
-        return;
+        return 0;
     }
     else if(reqId == 3){// internal query instrument list res
         if(m_vecPos < m_marketVec.size()){
@@ -179,26 +177,26 @@ void ConvertService::OnLwsRecvMsg(std::string&& msg)
             std::cout<<"Get all instrument info, msg len:"<<ConvertUtils::m_queryAllInsResStr.size()<<std::endl;
             std::cout<<"System init OK"<<std::endl;
         }
-        return;
+        return 0;
     }
     else if(reqId == 4){ // query market open time
-        return;
+        return 0;
     }
     else if(reqId == 5){ // resub res 
-        std::cout<<"Recv resub res"<<resJson.toStyledString()<<std::endl;
-        return;
+        //std::cout<<"Recv resub res"<<resJson.toStyledString()<<std::endl;
+        return 0;
     }
     else if(reqId == 0){// push res
         std::string key;
         int reqType = resJson["reqtype"].asInt();
         if(reqType == 250){
             Json::Value infoArryJson = resJson["data"]["symbol"];
-            if(infoArryJson.empty()) return;
+            if(infoArryJson.empty()) return -1;
             key = "1|" + infoArryJson[0]["market"].asString() + "|" + infoArryJson[0]["code"].asString();
         }
         else if (reqType == 251){
             Json::Value infoArryJson = resJson["data"]["tick"];
-            if(infoArryJson.empty()) return;
+            if(infoArryJson.empty()) return -1;
             key = "2|" + infoArryJson[0]["market"].asString() + "|" + infoArryJson[0]["code"].asString();
         }
         else if (reqType == 252){
@@ -207,8 +205,8 @@ void ConvertService::OnLwsRecvMsg(std::string&& msg)
         }
         auto mapIt = m_type2ctxsMap.find(key);
         if(mapIt == m_type2ctxsMap.end()){
-            std::cout<<"Can't find connect, key: "<<key<<std::endl;
-            return;
+            //std::cout<<"Can't find connect, key: "<< key <<"msg: "<<resJson.toStyledString()<<std::endl;
+            return -1;
         }
         for(auto it = mapIt->second.begin(); it != mapIt->second.end();)
         {
@@ -229,7 +227,7 @@ void ConvertService::OnLwsRecvMsg(std::string&& msg)
     else{// reply
         auto it = m_id2ctxMap.find(reqId);
         if(it == m_id2ctxMap.end()){
-            std::cout<<"Unknown req id: "<<reqId<<std::endl;
+            //std::cout<<"Unknown req id: "<<reqId<<", msg:"<<resJson.toStyledString()<<std::endl;
         }
         else{
             if(it->second){
@@ -242,11 +240,6 @@ void ConvertService::OnLwsRecvMsg(std::string&& msg)
             m_id2ctxMap.erase(it);
         }
     }
-}
-
-void ConvertService::OnLwsConnect()
-{
-    
 }
 
 void ConvertService::OnLevAccept(CContext* conn, const char* peer, uint32_t len)
@@ -298,7 +291,10 @@ int ConvertService::ProcessReq(CContext* conn, const std::string& reqStr)
         return -1;
     }
     else{
-        std::cout<<"\033[1;31;40mLev Recv:\033[0m "<<reqJson.toStyledString()<<std::endl;
+
+        if(reqJson["reqtype"].asInt() != 1){
+            std::cout<<"\033[1;31;40mLev Recv:\033[0m "<<reqJson.toStyledString()<<std::endl;
+        }
     }
     bool specilaAdd = false;
 
@@ -339,12 +335,14 @@ int ConvertService::ProcessReq(CContext* conn, const std::string& reqStr)
         return 0;
     }
     else if(reqType == 200 || reqType == 201){// sub or unsub
+        Json::Value realArray;
+        realArray.resize(0);
+        int realCounts = 0;
         for(int i = 0; i < reqJson["data"].size(); ++i)
         {
             std::string type = reqJson["data"][i]["type"].asString();
             std::string key = type + "|" + reqJson["data"][i]["market"].asString() + "|" + reqJson["data"][i]["code"].asString();
             if(reqType == 200){
-                
                 if(type == "1"){
                     Json::Value oneCode;
                     oneCode["market"] = reqJson["data"][i]["market"].asInt();
@@ -355,6 +353,7 @@ int ConvertService::ProcessReq(CContext* conn, const std::string& reqStr)
                 auto typeIt = m_type2ctxsMap.find(key);
                 if (typeIt == m_type2ctxsMap.end()){
                     typeIt = m_type2ctxsMap.insert(std::make_pair(key, std::unordered_map<intptr_t, CContext *>())).first;
+                    realArray[realCounts++] = reqJson["data"][i];
                 }
                 typeIt->second.insert(std::make_pair((intptr_t)conn, conn));
 
@@ -363,6 +362,7 @@ int ConvertService::ProcessReq(CContext* conn, const std::string& reqStr)
                     ctxIt = m_ctx2typeMap.insert(std::make_pair((intptr_t)conn, std::vector<std::string>())).first;
                 }
                 ctxIt->second.emplace_back(key);
+
             }
             else{
                 Json::Value del;
@@ -373,28 +373,28 @@ int ConvertService::ProcessReq(CContext* conn, const std::string& reqStr)
                         typeIt->second.erase(it);
                         if(typeIt->second.empty()){
                             m_type2ctxsMap.erase(typeIt);
-                        }
-                        else{
-                            reqJson["data"].removeIndex(i, &del);
+                            realArray[realCounts++] = reqJson["data"][i];
                         }
                     }
                 }
-            }
-            
+            } 
         }
+        reqJson["data"] = realArray;
+
         if(!ConvertUtils::queryQuotesJson["data"]["symbol"].empty()){
             specilaAdd = true;
             ConvertUtils::queryQuotesJson["reqid"] = m_reqId + 1;
             // before sub, query 153
             std::string queryQuoteStr = ConvertUtils::queryQuotesJson.toStyledString();
-            m_lwsClientPtr->SendReq(queryQuoteStr);
+            m_uwsClientPtr->SendReq(queryQuoteStr);
             m_id2ctxMap[m_reqId + 1] = conn;
             ConvertUtils::queryQuotesJson["data"]["symbol"].resize(0);
         }
+        //std::cout<<"\033[1;31;40mReal Send:\033[0m"<<reqJson.toStyledString()<<std::endl;
     }
 
     // send req to websockets
-    m_lwsClientPtr->SendReq(reqJson.toStyledString());
+    m_uwsClientPtr->SendReq(reqJson.toStyledString());
     m_id2ctxMap[m_reqId] = conn;
     m_id2originalId[m_reqId] = ret; // ret is request true req id
     if(specilaAdd) ++m_reqId;
@@ -428,7 +428,7 @@ void ConvertService::OnLevDisConnect(CContext* conn)
                     if (keyVec.size() >= 3){
                         char unsubMsg[1024];
                         snprintf(unsubMsg, 1024, UN_SUB_FORMATS, keyVec[1].data(), keyVec[2].data(), keyVec[0].data());
-                        m_lwsClientPtr->SendReq(unsubMsg);
+                        m_uwsClientPtr->SendReq(unsubMsg);
                         std::cout << "Send unsub msg: " << unsubMsg << std::endl;
                     }
                 }
@@ -444,7 +444,7 @@ void ConvertService::OnLevError(CContext* conn, int err, const char* err_msg)
 
 void ConvertService::SendReq(std::string& msg)
 {
-    m_lwsClientPtr->SendReq(msg);
+    m_uwsClientPtr->SendReq(msg);
 }
 
 void ConvertService::OnSendHeartbeatTimer(evutil_socket_t fd, short event, void* args)
@@ -482,67 +482,11 @@ void ConvertService::OnQueryInsInfoTimer(evutil_socket_t fd, short event, void* 
     ConvertService* cs = (ConvertService*) args;
     std::string queryOpenTime = ConvertUtils::queryMarketJson.toStyledString();
     cs->SendReq(queryOpenTime);
+
     char queryInsMsg[1024];
     snprintf(queryInsMsg, 1024, QUERY_INS_FORMATS, 2011, 0);
     std::string queryInsStr(queryInsMsg);
     cs->SendReq(queryInsStr);
-}
-
-void ConvertService::OnResubTimer(evutil_socket_t fd, short event, void* args)
-{
-    ConvertService* cs = (ConvertService*) args;
-    cs->Resub();
-}
-
-void ConvertService::Resub()
-{
-    int i = 0;
-    Json::Value resubReqJson;
-    resubReqJson["reqid"] = 5;
-    resubReqJson["reqtype"] = 200;
-    resubReqJson["data"].resize(0);
-    for(auto it = m_type2ctxsMap.begin(); it != m_type2ctxsMap.end();)
-    {
-        if(it->second.empty()){
-            m_type2ctxsMap.erase(it++);
-            continue;
-        }
-        else{
-            std::string key = it->first;
-            std::vector<std::string> keyVec;
-            int start = 0;
-            for (int pos = 0; pos < key.size(); ++pos)
-            {
-                if (key[pos] == '|'){
-                    keyVec.emplace_back(key.substr(start, pos - start));
-                    start = pos + 1;
-                }
-            }
-            keyVec.emplace_back(key.substr(start));
-            if(keyVec.size() < 3){
-                // do nothing
-            }
-            else{
-                Json::Value oneCodeJson;
-                oneCodeJson["type"] = std::atoi(keyVec[0].c_str());
-                oneCodeJson["market"] = std::atoi(keyVec[1].c_str());
-                oneCodeJson["code"] = keyVec[2];
-                resubReqJson["data"].append(oneCodeJson);
-                if (resubReqJson["data"].size() > 240)
-                {
-                    std::string resubReqStr = resubReqJson.toStyledString();
-                    SendReq(resubReqStr);
-                    resubReqJson["data"].resize(0);
-                }
-            }
-            ++it;
-        }
-    }
-    if(!resubReqJson["data"].empty()){
-        std::string resubReqStr = resubReqJson.toStyledString();
-        SendReq(resubReqStr);
-        std::cout<<"Resub req send, size: "<<resubReqJson["data"].size()<<std::endl;
-    }
 }
 
 std::string ConvertService::PackMsg(const std::string &RawMsg)
