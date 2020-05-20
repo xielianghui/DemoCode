@@ -1,3 +1,5 @@
+.vs/
+.vscode/
 *.sh
 build/
 gen_cpp/
